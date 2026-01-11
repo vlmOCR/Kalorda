@@ -23,6 +23,7 @@
   "dependencies": {
     "@primeuix/themes": "^1.2.5",
     "@thumbmarkjs/thumbmarkjs": "^0.20.0",
+    "@vueuse/core": "^14.1.0",
     "axios": "^1.8.2",
     "bignumber.js": "^9.1.2",
     "chart.js": "^4.4.8",
