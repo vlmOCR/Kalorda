@@ -89,6 +89,11 @@ const searchDatasets = (toFirstPage: boolean) => {
     getAllDatasets(model_type, keyword.value, toFirstPage);
 };
 
+const onRowSelect = (e: any) => {
+    dataView(e.data);
+    // gotoRoute('dataview', { dataset_id: e.data.id });
+};
+
 // 页面详情
 const dataView = (dataset: any) => {
     gotoRoute('dataview', { dataset_id: dataset.id });
@@ -239,7 +244,7 @@ onDeactivated(() => {
             </div>
 
             <div>
-                <DataTable v-model:first="first" ref="dt" :value="datasetList" dataKey="id" :paginator="true" :rows="10" :rowsPerPageOptions="[5, 10, 25]" selectionMode="single">
+                <DataTable @row-select="onRowSelect" v-model:first="first" ref="dt" :value="datasetList" dataKey="id" :paginator="true" :rows="10" :rowsPerPageOptions="[5, 10, 25]" selectionMode="single">
                     <template #header>
                         <div class="flex flex-wrap gap-2 items-center justify-between select-none">
                             <div class="flex gap-2 w-[60%]">

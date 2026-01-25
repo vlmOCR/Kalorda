@@ -96,6 +96,11 @@ const refreshTrainDataConfirm = async (task: any, event: any) => {
     });
 };
 
+const onRowSelect = (e: any) => {
+    // console.log(e.originalEvent.target);
+    gotoTrainingRun(e.data, e.originalEvent);
+};
+
 // 查看训练实例列表
 const gotoTrainingRun = async (task: any, event: any) => {
     let train_data_path = (task && task.train_data_path) || '';
@@ -391,7 +396,7 @@ onDeactivated(() => {
             </div>
 
             <div>
-                <DataTable v-model:first="first" :value="finetuneTaskList" dataKey="id" :paginator="true" :rows="10" :rowsPerPageOptions="[5, 10, 25]" selectionMode="single" @page="searchFinetuneTasks(false)">
+                <DataTable @row-select="onRowSelect" v-model:first="first" :value="finetuneTaskList" dataKey="id" :paginator="true" :rows="10" :rowsPerPageOptions="[5, 10, 25]" selectionMode="single" @page="searchFinetuneTasks(false)">
                     <template #header>
                         <div class="flex flex-wrap gap-2 items-center justify-between select-none">
                             <div class="flex gap-2 w-[60%]">

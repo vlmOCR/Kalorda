@@ -54,8 +54,9 @@ onMounted(async () => {
 
             <div class="flex flex-wrap justify-center gap-12">
                 <div
+                    @click="gotoRoute('/train/dataset')"
                     v-animateonscroll="{ enterClass: 'animate-enter fade-in-10 zoom-in-50 animate-duration-1000' }"
-                    class="flex flex-col bg-purple-500 text-white border-purple-500 shadow-lg justify-center items-center max-w-80 rounded-2xl p-8 gap-4"
+                    class="flex flex-col bg-purple-500 text-white border-purple-500 shadow-lg justify-center items-center max-w-80 rounded-2xl p-8 gap-4 cursor-pointer"
                 >
                     <div class="rounded-xl border-2 border-white w-12 h-12 flex items-center justify-center">
                         <i class="pi pi-database !text-2xl"></i>
@@ -63,7 +64,11 @@ onMounted(async () => {
                     <span class="text-2xl font-bold">{{ t('page.home.datalabel') }}</span>
                     <span class="text-center">{{ t('page.home.dataset_count', [homeData.dataset_count || 0, homeData.dataset_image_count || 0]) }}</span>
                 </div>
-                <div v-animateonscroll="{ enterClass: 'animate-enter fade-in-10 zoom-in-75 animate-duration-1000' }" class="flex flex-col bg-teal-500 text-white border-teal-500 shadow-lg justify-center items-center max-w-80 rounded-2xl p-8 gap-4">
+                <div
+                    @click="gotoRoute('/train/finetune')"
+                    v-animateonscroll="{ enterClass: 'animate-enter fade-in-10 zoom-in-75 animate-duration-1000' }"
+                    class="flex flex-col bg-teal-500 text-white border-teal-500 shadow-lg justify-center items-center max-w-80 rounded-2xl p-8 gap-4 cursor-pointer"
+                >
                     <div class="rounded-xl border-2 border-white w-12 h-12 flex items-center justify-center">
                         <i class="pi pi-objects-column !text-2xl"></i>
                     </div>
@@ -71,8 +76,9 @@ onMounted(async () => {
                     <span class="text-center">{{ t('page.home.finetune_count', [homeData.fine_tune_task_count || 0, homeData.training_run_count || 0]) }}</span>
                 </div>
                 <div
+                    @click="gotoRoute('/train/modeltest')"
                     v-animateonscroll="{ enterClass: 'animate-enter fade-in-10 zoom-in-50 animate-duration-1000' }"
-                    class="flex flex-col bg-indigo-500 text-white border-indigo-500 shadow-lg justify-center items-center max-w-80 rounded-2xl p-8 gap-4"
+                    class="flex flex-col bg-indigo-500 text-white border-indigo-500 shadow-lg justify-center items-center max-w-80 rounded-2xl p-8 gap-4 cursor-pointer"
                 >
                     <div class="rounded-xl border-2 border-white w-12 h-12 flex items-center justify-center">
                         <i class="pi pi-map !text-2xl"></i>
