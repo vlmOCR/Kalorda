@@ -71,22 +71,23 @@ const chunkLength = 500; //选择文件时多少个文件作为一个处理批�
 // const totalSize = ref(0);
 // const totalSizePercent = ref(0);
 
-const totalFiles: Array<ExtendFile> = []; //总的文件，不需要响应式，只是数据存储，不在UI显示
-const vShowFiles = reactive<Array<any>>([]); //仅需要显示在UI上的虚拟滚动的文件，使用双向响应式
+const totalFiles = reactive<Array<ExtendFile>>([]); // All files, now reactive for VirtList
+const totalFileCount = ref(0); // Total file count
+const filesPerRow = 6; // Number of files per row
+const rowHeight = 302.6 + 18; // Height of each row (card height + gap)
 
-const totalFileCount = ref(0); // 添加的总文件数量
-const vShowFileNumPerLine = ref(6); //一行显示几个
-const vShowLineNum = ref(5); //Main区一共显示几行
-const vShowLineHeight = ref(302.6 + 18); // 一行显示高度
-const startIndex = ref(0); // 当前显示的起始索引
-const endIndex = ref(vShowFileNumPerLine.value * vShowLineNum.value); // 当前显示的结束索引
-
-const updateVShowFiles = () => {
-    const start = Math.max(0, startIndex.value);
-    const end = Math.min(totalFiles.length, endIndex.value);
-    vShowFiles.length = 0;
-    vShowFiles.push(...totalFiles.slice(start, end));
-};
+// Group files into rows for VirtList
+const fileRows = computed(() => {
+    const rows: Array<{ id: number; files: Array<ExtendFile> }> = [];
+    for (let i = 0; i < totalFiles.length; i += filesPerRow) {
+        rows.push({
+            id: i,
+            files: totalFiles.slice(i, i + filesPerRow)
+        });
+    }
+    console.log('fileRows computed:', rows.length, 'rows, totalFiles:', totalFiles.length);
+    return rows;
+});
 
 const formatSize = (bytes: number) => {
     const k = 1024;
@@ -211,7 +212,6 @@ const fileListProcess = async (files: FileList, chunkLength: number) => {
         await new Promise((resolve) => setTimeout(resolve, 0));
         let sFiles = array.splice(0, chunkLength);
         for (let file of sFiles) {
-            //将tryAddFile方法变一下：中间临时变量存储最后一次性赋值给totalFiles
             if (!isFileSelected(file)) {
                 if (validate(file)) {
                     tempFiles.push(getExtendFile(file));
@@ -220,17 +220,13 @@ const fileListProcess = async (files: FileList, chunkLength: number) => {
         }
     }
     let t2 = Date.now();
-    console.log('处理耗时', t2 - t1);
+    console.log('Processing time', t2 - t1);
     if (tempFiles.length > 0) {
-        // totalFiles = [...totalFiles, ...tempFiles];
         totalFiles.push(...tempFiles);
         totalFileCount.value += tempFiles.length;
-        updateVShowFiles();
-        // 计算总高度
-        changeTotalHeight();
     }
     hideLoading();
-    console.log('处理完成', totalFiles.length);
+    console.log('Processing complete', totalFiles.length);
 };
 
 const tryAddFile = (file: File) => {
@@ -238,9 +234,6 @@ const tryAddFile = (file: File) => {
         if (validate(file)) {
             totalFiles.push(getExtendFile(file));
             totalFileCount.value += 1;
-            updateVShowFiles();
-            // 计算总高度
-            changeTotalHeight();
         }
     }
 };
@@ -285,65 +278,36 @@ const revokeFileObjectURL = (tIndex?: number) => {
     }
 };
 
-const removeFile = (vIndex: number) => {
-    if (vShowFiles.length == 0) {
+const removeFile = (index: number) => {
+    if (totalFiles.length == 0) {
         return;
     }
-    if (vIndex < 0 || vIndex >= vShowFiles.length) {
+    if (index < 0 || index >= totalFiles.length) {
         return;
     }
 
     clearInputElement();
-    let file = vShowFiles.splice(vIndex, 1)[0]; // 删掉一个
-    let tIndex = vIndex + startIndex.value;
+    let file = totalFiles[index];
 
-    //如果当前正在上传，中止上传
+    // If currently uploading, cancel upload
     if (file.status === FileStatus.Uploading) {
-        uploadCancel(tIndex);
+        uploadCancel(index);
     }
 
-    if (tIndex >= 0) {
-        revokeFileObjectURL(tIndex); // 如果有objectURL先释放
-        totalFiles.splice(tIndex, 1)[0];
-        totalFileCount.value -= 1;
-        // 更新虚拟列表的起止索引
-        if (vIndex == 0) {
-            //如果删除的是vShowFiles的第一个元素，才需要改一下startIndex；否则不用改startIndex
-            startIndex.value = tIndex;
-        }
-        endIndex.value = startIndex.value + vShowFileNumPerLine.value * vShowLineNum.value;
-        updateVShowFiles();
-        changeTotalHeight();
-    }
+    revokeFileObjectURL(index);
+    totalFiles.splice(index, 1);
+    totalFileCount.value -= 1;
 };
 
 const removeAllFiles = () => {
-    uploadCancel(); //中止上传，不论正在上传哪个文件
+    uploadCancel();
 
     clearInputElement();
+    revokeFileObjectURL();
     totalFileCount.value = 0;
     totalFiles.length = 0;
-    vShowFiles.length = 0;
-
-    if ($dom('#fileListFill')) {
-        $dom('#fileListFill').style.height = '0px';
-    }
-    changeTotalHeight();
-    startIndex.value = 0;
-    endIndex.value = vShowFileNumPerLine.value * vShowLineNum.value;
-    revokeFileObjectURL(); // 释放objectURL
 };
 
-const changeTotalHeight = () => {
-    if (totalFiles.length > 0 && $dom('#fileDisplayBox')) {
-        let vShowTotalLine = Math.ceil(totalFiles.length / vShowFileNumPerLine.value);
-        $dom('#fileDisplayBox').style.height = vShowTotalLine * vShowLineHeight.value + 'px';
-    } else {
-        $dom('#fileDisplayBox').style.height = '';
-    }
-
-    console.log(`vShowFiles.length=${vShowFiles.length}`);
-};
 
 const fileTypeImage = (file: File) => {
     let fileName = file.name.toLowerCase();
@@ -444,7 +408,7 @@ const getClipboardImg = async () => {
     }
 };
 
-// 滚动条滚动时触发事件
+// Scroll event handler for fixed menu
 const onScrollEvent = (e: any) => {
     e;
     let beginHeight = 90;
@@ -452,36 +416,11 @@ const onScrollEvent = (e: any) => {
     if (window.scrollY > beginHeight) {
         let menu = $dom('#fixedMenu');
         menu.style.position = 'fixed';
-        menu.style.top = '56px'; // 页面布局layout-header的高度
+        menu.style.top = '56px';
         menu.style.right = '57px';
         menu.style.zIndex = '100';
     } else {
         $dom('#fixedMenu').style.position = '';
-    }
-
-    // const fileDisplayBox: any = $dom('#fileDisplayBox');
-    const fill = $dom('#fileListFill'); //空白高度填充层
-    const main = $dom('#fileListMain');
-    let computeStartIndex = 0; // 计算开始的index
-
-    if (!fill || !main) {
-        return;
-    }
-
-    if (window.scrollY > beginHeight) {
-        let scrollLineNum = Math.ceil((window.scrollY - beginHeight) / vShowLineHeight.value);
-        fill.style.height = (scrollLineNum - 1) * vShowLineHeight.value + 'px';
-        computeStartIndex = (scrollLineNum - 1) * vShowFileNumPerLine.value;
-    } else {
-        fill.style.height = '0px';
-        computeStartIndex = 0;
-    }
-
-    if (startIndex.value != computeStartIndex) {
-        //只有应该变的时候才改变数据源
-        startIndex.value = computeStartIndex;
-        endIndex.value = startIndex.value + vShowFileNumPerLine.value * vShowLineNum.value;
-        requestAnimationFrame(updateVShowFiles);
     }
 };
 
@@ -556,7 +495,7 @@ let uploadCancelTokens: any[] = [];
 // 暂停取消上传
 const uploadCancel = (tIndex?: number) => {
     if (isDatasetUploading.value) {
-        if (tIndex) {
+        if (tIndex !== undefined) {
             let uploadCancelToken = uploadCancelTokens.filter((item) => item.tIndex == tIndex)[0];
             if (uploadCancelToken) {
                 uploadCancelToken.cancel();
@@ -592,8 +531,7 @@ const uploadFiles = async () => {
         }
         file.percent = 0;
         file.status = FileStatus.Uploading;
-        trySyncVShowFile(file, tIndex);
-        // 上传文件
+        // Upload file
         let [err, res] = await promise2(
             DatasetService.uploadDatasetFile(
                 datasetId,
@@ -604,7 +542,6 @@ const uploadFiles = async () => {
                 },
                 (loaded: number, total: number) => {
                     file.percent = Math.round((loaded / total) * 100);
-                    trySyncVShowFile(file, tIndex);
                 }
             )
         );
@@ -621,7 +558,6 @@ const uploadFiles = async () => {
             uploadSuccess++;
             file.status = FileStatus.Complete;
             file.percent = 100;
-            trySyncVShowFile(file, tIndex);
         }
     }
     // 所有文件上传完成
@@ -639,16 +575,7 @@ const uploadFiles = async () => {
     // 上传完成
 };
 
-// （如果当前上传的文件处在正预览的虚拟列表中）同步更新vShowFiles状态和进度条
-const trySyncVShowFile = (file: ExtendFile, tIndex: number) => {
-    if (tIndex >= startIndex.value && tIndex < endIndex.value) {
-        let vIndex = tIndex - startIndex.value;
-        if (vShowFiles[vIndex] && vShowFiles[vIndex].key === file.key) {
-            vShowFiles[vIndex] = null; // 因为 vShowFiles[vIndex]和file引用地址相同，先切断一下再赋值否则UI界面不会响应式变化
-            vShowFiles[vIndex] = file;
-        }
-    }
-};
+// No longer needed - VirtList handles reactivity automatically with totalFiles
 
 const getFileStatus = (status: FileStatus) => {
     let result = '';
@@ -755,14 +682,13 @@ onUnmounted(() => {
                     />
                 </div>
             </div>
-            <!-- fileDisplayBox 有选文件时 -->
-            <div id="fileDisplayBox" @dragenter="onDragEnter" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop" style="border: 2px" v-if="vShowFiles.length > 0">
-                <div>
-                    <div id="fileListFill" style="visibility: hidden; height: 0"></div>
-                    <div id="fileListMain">
-                        <div class="grid grid-cols-24 gap-4">
-                            <div v-for="(file, index) of vShowFiles" :key="file.key" class="col-span-12 sm:col-span-6 lg:col-span-4">
-                                <div class="p-8 border border-surface-200 dark:border-surface-700 rounded col-span-12 sm:col-span-6">
+            <!-- fileDisplayBox with files -->
+            <div id="fileDisplayBox" @dragenter="onDragEnter" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop" style="border: 2px; height: calc(100vh - 200px); overflow: hidden" v-if="totalFiles.length > 0">
+                <VirtualScroller :items="fileRows" :itemSize="rowHeight" class="w-full h-full">
+                    <template v-slot:item="{ item: row }">
+                        <div class="grid grid-cols-24 gap-4 px-4">
+                            <div v-for="(file, colIndex) in row.files" :key="file.key" class="col-span-12 sm:col-span-6 lg:col-span-4">
+                                <div class="p-8 border border-surface-200 dark:border-surface-700 rounded">
                                     <div class="text-center">
                                         <div class="h-40" v-if="isImage(file.file)">
                                             <Image preview role="presentation" :alt="file.file.name" :src="file.objectURL" width="100" height="50" class="max-h-40" />
@@ -779,18 +705,18 @@ onUnmounted(() => {
                                                 <ProgressBar v-if="file.status === FileStatus.Uploading" :value="file.percent" class="w-full"></ProgressBar>
                                                 <Badge v-else :value="getFileStatus(file.status)" :severity="getSeverity(file.status)" class="w-full whitespace-nowrap" />
                                             </div>
-                                            <Button :icon="file.status === FileStatus.Complete ? `pi pi-check` : `pi pi-times`" @click="removeFile(index)" outlined rounded :severity="getSeverity(file.status)" />
+                                            <Button :icon="file.status === FileStatus.Complete ? `pi pi-check` : `pi pi-times`" @click="removeFile(row.id + colIndex)" outlined rounded :severity="getSeverity(file.status)" />
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </template>
+                </VirtualScroller>
             </div>
 
-            <!-- fileDisplayBox 没选文件时 -->
-            <div id="fileDisplayBox" @dragenter="onDragEnter" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop" class="border border-2 border-dashed rounded border-surface-200 dark:border-surface-700" v-if="vShowFiles.length == 0">
+            <!-- fileDisplayBox when no files -->
+            <div id="fileDisplayBox" @dragenter="onDragEnter" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop" class="border border-2 border-dashed rounded border-surface-200 dark:border-surface-700" v-if="totalFiles.length == 0">
                 <div class="p-21">
                     <div class="flex items-center justify-center flex-col">
                         <i @click="chooseFiles" class="pi pi-plus !border-4 !rounded-full !p-8 !text-6xl !text-muted-color hover:bg-primary-500 dark:hover:bg-surface-500 cursor-pointer" />
