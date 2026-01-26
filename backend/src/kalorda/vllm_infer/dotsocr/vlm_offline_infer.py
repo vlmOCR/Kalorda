@@ -145,7 +145,7 @@ class DotsOCRInfer:
         doc.Close()
 
         # 再将pdf转成图片，采用pdf2image组件，指定dpi为200
-        images = pdf2image.convert_from_path(tmp_pdf_file, dpi=200)
+        images = pdf2image.convert_from_path(tmp_pdf_file, dpi=200, size=(2048, None))
         image = images[0]
 
         # 最后智能计算应该合适尺寸并修改，确保像素数在3136-11289600之间

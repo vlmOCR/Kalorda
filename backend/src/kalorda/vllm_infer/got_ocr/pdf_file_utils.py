@@ -13,12 +13,12 @@ from pdf2image import convert_from_path
 
 
 # 将pdf文件转换为图片，并保存到临时目录
-def pdf_to_image(pdf_file_path: str, dpi: int = 300, fmt: str = "png") -> List[str]:
+def pdf_to_image(pdf_file_path: str, dpi: int = 200, fmt: str = "png") -> List[str]:
     # 如果是网络文件，则下载到本地
     file_name = f"{uuid.uuid4().hex}"
     if pdf_file_path.startswith("http"):
         pdf_file_path, file_name = __download_pdf_file(pdf_file_path)
-    pdf_image_list = convert_from_path(pdf_file_path, dpi=dpi, fmt=fmt)
+    pdf_image_list = convert_from_path(pdf_file_path, dpi=dpi, fmt=fmt, size=(2048, None))
     image_files = []
     for j, pdf_image in enumerate(pdf_image_list):
         pdf_image_save_file = f"{file_name}_page_{j}.{fmt}"

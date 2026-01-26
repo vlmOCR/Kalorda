@@ -130,7 +130,7 @@ async def upload_test_file(
             # "application/pdf"文件类型
             logger.info(f"file.content_type: {file.content_type}, file_path: {os.path.abspath(file_path)}")
             try:
-                pdf_pages = convert_from_path(file_path, dpi=200, fmt="jpg")
+                pdf_pages = convert_from_path(file_path, dpi=200, fmt="jpg", size=(2048, None))
             except Exception as e:
                 logger.error(f"convert pdf to images error: {str(e)}", exc_info=True)
                 return error_response(_("文件上传失败"))

@@ -48,7 +48,7 @@ def _convert_if_pdf_to_image(dataset_id: int):
 
             # 转换PDF为图片
             try:
-                pdf_pages = convert_from_path(pdf_file_path)
+                pdf_pages = convert_from_path(pdf_file_path, dpi=200, fmt="jpg", size=(2048, None))
             except Exception as e:
                 logger.error(f"转换PDF文件 {pdf_file_path} 失败: {str(e)}")
                 continue
