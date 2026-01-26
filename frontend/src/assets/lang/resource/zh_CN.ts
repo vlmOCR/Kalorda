@@ -162,6 +162,7 @@ export default {
             move: '移动',
             index: '编号',
             all: '全部',
+            import: '导入',
             more: '更多操作'
         },
         login: {
@@ -335,6 +336,15 @@ export default {
             clipboard_no_data: '当前剪贴板中没有数据',
             addfile_limit: '文件数量超过限制，最多添加 {0} 个文件',
             upload_complete: '上传结束'
+        },
+        zipimport: {
+            title: '已有标注数据Zip直接导入',
+            targetdataset: '目标数据集：',
+            traindataradio: '训练数据占比（%）',
+            zipfile: 'zip文件',
+            zipselect: '选择文件',
+            noselect: '尚未选择',
+            zipnote: 'zip文件内图片和labels.jsonl保持平级<br/>labels.jsonl示例 {"images":"1.jpg","text":"label text"}'
         },
         label: {
             title: 'OCR图像标注',

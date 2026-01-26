@@ -14,6 +14,7 @@ import { DatasetService } from '@/services/DatasetService';
 import { $dom, promise2, gotoRoute, routeBack, queryParamValue, formatTime, aesEncode } from '@/utils/Common'; //  gotoRoute,
 import { useConfirm } from 'primevue/useconfirm';
 import { useI18n } from 'vue-i18n';
+import ZipDataSetImport from './ZipDataSetImport.vue';
 const confirm = useConfirm();
 const { t } = useI18n();
 const base = import.meta.env.VITE_APP_BASE;
@@ -74,6 +75,15 @@ const datasetInfo = (event: any) => {
 
 const closeDatasetInfoPopover = () => {
     datasetInfoPopover.value.toggle();
+};
+
+const importVisible = ref(false);
+const openImport = () => {
+    importVisible.value = true;
+};
+const onImportDone = async () => {
+    await getDataset();
+    searchImages(false);
 };
 
 const clearKeyword = () => {
@@ -557,6 +567,7 @@ onDeactivated(() => {
                             </div>
                             <div class="flex gap-2">
                                 <Button type="button" severity="secondary" icon="pi pi-cloud-upload" :label="t('page.common.upload')" @click="upload()" />
+                                <Button type="button" severity="secondary" icon="pi pi-file-arrow-up" :label="t('page.common.import')" @click="openImport()" />
                                 <Button type="button" severity="warn" icon="pi pi-arrow-right-arrow-left" :label="t('page.common.move')" v-if="selectedImages.length > 0" @click="moveImagesToOtherDataset($event)" />
                                 <Button type="button" severity="danger" icon="pi pi-times" :label="t('page.common.delete')" v-if="selectedImages.length > 0" @click="deleteImageBatch($event)" />
                             </div>
@@ -624,6 +635,7 @@ onDeactivated(() => {
                 <ScrollTop />
             </div>
         </div>
+        <ZipDataSetImport v-model:visible="importVisible" :datasetId="datasetId" :datasetName="dataset?.name" @imported="onImportDone" />
     </div>
 </template>
 <style scoped>

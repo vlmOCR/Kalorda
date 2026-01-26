@@ -10,6 +10,7 @@ export const routeMeta: RouteMeta = {
 import { showLoading, hideLoading, showToast } from '@/utils/GlobalUtil';
 import { DatasetService } from '@/services/DatasetService';
 import { promise2, objectClone, gotoRoute } from '@/utils/Common';
+import ZipDataSetImport from './ZipDataSetImport.vue';
 // import { useConfirm } from "primevue/useconfirm";
 import { useI18n } from 'vue-i18n';
 // const confirm = useConfirm();
@@ -104,6 +105,16 @@ const upload = (dataset: any) => {
     gotoRoute('upload', { dataset_id: dataset.id });
 };
 
+const importVisible = ref(false);
+const importDataset = ref<any>(null);
+const openImport = (dataset: any) => {
+    importDataset.value = dataset;
+    importVisible.value = true;
+};
+const onImportDone = () => {
+    searchDatasets(false);
+};
+
 const moreMenu = ref<any>();
 const moreTargetDataset = ref<any>();
 const more = (data: any, event: any) => {
@@ -111,6 +122,14 @@ const more = (data: any, event: any) => {
     moreMenu.value.show(event);
 };
 const moreMenuItems = ref<any>([
+    {
+        label: t('page.common.import'),
+        icon: 'pi pi-file-arrow-up',
+        command: (event: any) => {
+            console.log(event);
+            openImport(moreTargetDataset.value);
+        }
+    },
     {
         label: t('page.common.edit2'),
         icon: 'pi pi-pencil',
@@ -233,6 +252,7 @@ onActivated(async () => {
 onDeactivated(() => {
     drawerVisible.value = false;
     deleteConfirmVisible.value = false;
+    importVisible.value = false;
 });
 </script>
 <template>
@@ -369,6 +389,7 @@ onDeactivated(() => {
                         </div>
                     </div>
                 </Drawer>
+                <ZipDataSetImport v-model:visible="importVisible" :datasetId="importDataset?.id || 0" :datasetName="importDataset?.name" @imported="onImportDone" />
             </div>
         </div>
     </div>

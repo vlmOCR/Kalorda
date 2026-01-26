@@ -162,6 +162,7 @@ export default {
             move: 'Move',
             index: 'Index',
             all: 'All',
+            import: 'Import',
             more: 'More Operations'
         },
         login: {
@@ -335,6 +336,15 @@ export default {
             clipboard_no_data: 'No image in clipboard',
             addfile_limit: 'Maximum allowed to add {0} files',
             upload_complete: 'Upload complete'
+        },
+        zipimport: {
+            title: 'Import Zip (exist label data)',
+            targetdataset: 'Dataset:',
+            traindataradio: 'Train radio (%)',
+            zipfile: 'zip file',
+            zipselect: 'Choose Zip',
+            noselect: 'No file selected',
+            zipnote: 'labels.jsonl and images must be at the zip root.<br/>labels.jsonl data like {"images":"1.jpg","text":"label text"}'
         },
         label: {
             title: 'OCR Image Labeling',

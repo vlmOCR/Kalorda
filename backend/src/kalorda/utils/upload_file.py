@@ -86,3 +86,32 @@ async def save_test_file(file: UploadFile = File(...)):
             f.write(chunk)
             md5_hash.update(chunk)
     return True, file_path, md5_hash.hexdigest()
+
+
+async def save_dataset_zip(file: UploadFile = File(...), dataset_id: str = None):
+    """
+    Save dataset import zip file.
+    """
+    zip_types = {"application/zip", "application/x-zip-compressed"}
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file.content_type not in zip_types and file_ext != ".zip":
+        return False, f"unsupported zip file type: {file.filename}", ""
+
+    dataset_dir = get_dataset_directory(dataset_id)
+    import_dir = os.path.join(dataset_dir, "_imports")
+    if not os.path.exists(import_dir):
+        os.makedirs(import_dir, exist_ok=True)
+
+    unique_id = uuid.uuid4().hex
+    filename = f"{unique_id}.zip"
+    file_path = os.path.join(import_dir, filename)
+
+    md5_hash = hashlib.md5()
+    with open(file_path, "wb") as f:
+        while True:
+            chunk = await file.read(1024)
+            if not chunk:
+                break
+            f.write(chunk)
+            md5_hash.update(chunk)
+    return True, file_path, md5_hash.hexdigest()

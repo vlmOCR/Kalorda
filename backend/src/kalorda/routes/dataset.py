@@ -1,9 +1,15 @@
 import base64
+import json
 import os
+import random
+import shutil
+import uuid
+import zipfile
+from datetime import datetime
 from io import BytesIO
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, Query, UploadFile
 from PIL import Image
 from transformers import AutoTokenizer
 
@@ -44,7 +50,49 @@ from kalorda.utils.security import (
     get_annotator_user,
     get_current_active_user,
 )
-from kalorda.utils.upload_file import save_dataset_file
+from kalorda.utils.upload_file import get_dataset_directory, save_dataset_file, save_dataset_zip
+
+
+def _is_safe_relpath(path: str) -> bool:
+    if not path or os.path.isabs(path):
+        return False
+    normalized = os.path.normpath(path)
+    if normalized.startswith("..") or normalized.startswith("\\") or normalized.startswith("/"):
+        return False
+    return True
+
+
+def _safe_extract_zip(zip_path: str, extract_dir: str) -> None:
+    abs_extract_dir = os.path.abspath(extract_dir)
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        for member in zf.infolist():
+            member_name = member.filename
+            if not _is_safe_relpath(member_name):
+                raise ValueError(f"unsafe zip entry: {member_name}")
+            dest_path = os.path.abspath(os.path.join(abs_extract_dir, member_name))
+            if os.path.commonpath([abs_extract_dir, dest_path]) != abs_extract_dir:
+                raise ValueError(f"unsafe zip entry: {member_name}")
+            if member.is_dir():
+                os.makedirs(dest_path, exist_ok=True)
+                continue
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+            with zf.open(member, "r") as src, open(dest_path, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+
+
+def _get_label_text(item: dict) -> Optional[str]:
+    label_text = item.get("label")
+    if label_text is None:
+        label_text = item.get("text")
+    if label_text is None:
+        return None
+    if not isinstance(label_text, str):
+        label_text = str(label_text)
+    label_text = label_text.strip()
+    if not label_text:
+        return None
+    return label_text
+
 
 # 创建路由
 router = APIRouter(
@@ -289,6 +337,195 @@ async def upload_dataset_files(
         tokens=0,
     )
     return success_response(_("文件上传成功"))
+
+
+@router.post("/{dataset_id}/import")
+@with_db_transaction()
+async def import_dataset_zip(
+    dataset_id: int,
+    train_ratio: float = Form(..., description="Train split ratio from 0 to 100"),
+    file: UploadFile = File(...),
+    current_user: CurrentUser = Depends(get_current_active_user),
+):
+    """
+    Import dataset from a zip file with labels.jsonl at the root level.
+    """
+    dataset = DatasetDB.select_active().where(DatasetDB.id == dataset_id).first()
+    if not dataset:
+        return error_response("dataset not found")
+    if dataset.created_by.id != current_user.user_id:
+        return error_response("permission denied")
+
+    preprocessing_status = PreOCRStatus.get_all_status().index(PreOCRStatus.preprocessing) + 1
+    if dataset.pre_ocr_status == preprocessing_status:
+        return error_response("dataset is preprocessing")
+
+    if train_ratio < 0 or train_ratio > 100:
+        return error_response("train_ratio must be between 0 and 100")
+
+    success, zip_path, _ = await save_dataset_zip(file, dataset_id)
+    if not success:
+        return error_response(zip_path)
+
+    import_root = os.path.dirname(zip_path)
+    extract_dir = os.path.join(import_root, "extracted")
+    os.makedirs(extract_dir, exist_ok=True)
+
+    errors = []
+    entries = []
+    allowed_exts = {".jpg", ".jpeg", ".png", ".bmp", ".tiff"}
+
+    try:
+        _safe_extract_zip(zip_path, extract_dir)
+        labels_path = os.path.join(extract_dir, "labels.jsonl")
+        if not os.path.isfile(labels_path):
+            return error_response("labels.jsonl not found at zip root")
+
+        with open(labels_path, "r", encoding="utf-8") as f:
+            for line_no, line in enumerate(f, start=1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    item = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    errors.append({"line": line_no, "reason": f"invalid json: {exc}"})
+                    continue
+
+                image_name = item.get("image")
+                if not isinstance(image_name, str):
+                    errors.append({"line": line_no, "reason": "missing image field"})
+                    continue
+                image_name = image_name.strip()
+                if not image_name:
+                    errors.append({"line": line_no, "reason": "empty image field"})
+                    continue
+                if not _is_safe_relpath(image_name) or os.path.basename(image_name) != image_name:
+                    errors.append({"line": line_no, "reason": f"invalid image path: {image_name}"})
+                    continue
+
+                ext = os.path.splitext(image_name)[1].lower()
+                if ext not in allowed_exts:
+                    errors.append({"line": line_no, "reason": f"unsupported image extension: {image_name}"})
+                    continue
+
+                label_text = _get_label_text(item)
+                if label_text is None:
+                    errors.append({"line": line_no, "reason": "missing label text"})
+                    continue
+
+                image_path = os.path.join(extract_dir, image_name)
+                if not os.path.isfile(image_path):
+                    errors.append({"line": line_no, "reason": f"image not found: {image_name}"})
+                    continue
+
+                entries.append(
+                    {
+                        "line": line_no,
+                        "image_name": image_name,
+                        "image_path": image_path,
+                        "label": label_text,
+                    }
+                )
+
+        if not entries:
+            return error_response("no valid entries found")
+
+        models = OcrModel.get_all_models()
+        if dataset.model_type <= 0 or dataset.model_type > len(models):
+            return error_response("model not found")
+        matched_model = models[dataset.model_type - 1]
+        model_code = matched_model.get("code")
+        config_entry = SystemConfigDB.get_or_none(SystemConfigDB.config_key == f"{model_code}_weights_dir")
+        if not config_entry or not config_entry.config_value:
+            return error_response("model weights dir not configured")
+        model_weights_dir = config_entry.config_value
+
+        tokenizer = AutoTokenizer.from_pretrained(model_weights_dir, trust_remote_code=True)
+
+        random.shuffle(entries)
+        total = len(entries)
+        train_count = int(round(total * train_ratio / 100.0))
+        train_count = max(0, min(train_count, total))
+
+        dataset_dir = get_dataset_directory(dataset_id)
+        total_added = 0
+        train_added = 0
+        val_added = 0
+        train_tokens = 0
+        val_tokens = 0
+
+        for idx, entry in enumerate(entries):
+            train_data_type = 1 if idx < train_count else 2
+            try:
+                with Image.open(entry["image_path"]) as img:
+                    width, height = img.size
+            except Exception as exc:
+                errors.append({"line": entry["line"], "reason": f"invalid image: {exc}"})
+                continue
+
+            try:
+                tokens = len(tokenizer.tokenize(entry["label"]))
+            except Exception as exc:
+                errors.append({"line": entry["line"], "reason": f"tokenize failed: {exc}"})
+                continue
+
+            ext = os.path.splitext(entry["image_name"])[1].lower()
+            new_filename = f"{uuid.uuid4().hex}{ext}"
+            dest_path = os.path.join(dataset_dir, new_filename)
+            try:
+                shutil.copy2(entry["image_path"], dest_path)
+            except Exception as exc:
+                errors.append({"line": entry["line"], "reason": f"copy failed: {exc}"})
+                continue
+
+            DatasetImageDB.create(
+                dataset=dataset_id,
+                file_path=dest_path.replace(config.BASE_DIR, ""),
+                file_name=entry["image_name"],
+                file_size=os.path.getsize(dest_path),
+                is_preocr_completed=True,
+                train_data_type=train_data_type,
+                width=width,
+                height=height,
+                tokens=tokens,
+                ocr_label=entry["label"],
+            )
+
+            total_added += 1
+            if train_data_type == 1:
+                train_added += 1
+                train_tokens += tokens
+            else:
+                val_added += 1
+                val_tokens += tokens
+
+        if total_added > 0:
+            completed_status = PreOCRStatus.get_all_status().index(PreOCRStatus.completed) + 1
+            dataset.total_images += total_added
+            dataset.train_images += train_added
+            dataset.val_images += val_added
+            dataset.total_tokens += train_tokens + val_tokens
+            dataset.train_tokens += train_tokens
+            dataset.val_tokens += val_tokens
+            dataset.pre_ocr_status = completed_status
+            dataset.last_upload_time = datetime.now()
+            dataset.save()
+
+        summary = {
+            "total": total_added,
+            "train": train_added,
+            "val": val_added,
+            "train_tokens": train_tokens,
+            "val_tokens": val_tokens,
+            "skipped": max(0, len(entries) - total_added),
+        }
+        return success_response({"summary": summary, "errors": errors})
+    except Exception as exc:
+        logger.error(f"import dataset error: {str(exc)}", exc_info=True)
+        return error_response("import failed")
+    finally:
+        shutil.rmtree(import_root, ignore_errors=True)
 
 
 # 添加数据集预处理任务到gpu任务队列

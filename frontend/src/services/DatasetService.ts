@@ -1,4 +1,4 @@
-import { get, post, postFile } from '@/utils/axios/HttpRequest'; //get,
+import { get, post, postFile, postForm } from '@/utils/axios/HttpRequest'; //get,
 
 export const DatasetService = {
     // 获取数据列表页
@@ -37,6 +37,14 @@ export const DatasetService = {
     ) {
         let url = `/dataset/${dataset_id}/upload`;
         return postFile(url, file, abortCallback, progressCallback, errorCallback, finishedCallback);
+    },
+
+    async importDatasetZip(dataset_id: number | string, file: File, train_ratio: number | string) {
+        let url = `/dataset/${dataset_id}/import`;
+        let data = new FormData();
+        data.append('file', file);
+        data.append('train_ratio', String(train_ratio));
+        return postForm(url, data, 180 * 1000);
     },
 
     // 启动后端数据集预处理流程
