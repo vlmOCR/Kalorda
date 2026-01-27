@@ -2481,10 +2481,10 @@ const changePreviewFormat = (newFormat: string) => {
         void ensurePreviewContent();
     }
 };
-const currentPageHasLabels = computed(() => {
-    if (!currentImageOcrList.value || !currentImageOcrList.value[currentFilePageIndex.value]) return false;
-    return (currentImageOcrList.value[currentFilePageIndex.value].labelInfoList?.length || 0) > 0;
-});
+// const currentPageHasLabels = computed(() => {
+//     if (!currentImageOcrList.value || !currentImageOcrList.value[currentFilePageIndex.value]) return false;
+//     return (currentImageOcrList.value[currentFilePageIndex.value].labelInfoList?.length || 0) > 0;
+// });
 
 //双击json/text虚拟列表时，滚动到对应的canvas页
 const onPreviewList2DblClick = (e: any) => {
