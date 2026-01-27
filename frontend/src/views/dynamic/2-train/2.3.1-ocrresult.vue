@@ -133,6 +133,7 @@ const currentFilePageIndex = ref<number>(0);
 const currentFilePageDisplayIndex = ref<number>(0); // =currentFilePageIndex 专用页面上显示的（避免和currentFilePageIndex冲突）
 const currentFilePageCount = ref<number>(1);
 const filePagePopover = ref<any>(null);
+const pageOffsets = ref<number[]>([]);
 
 const filePageSlider = (e: any) => {
     if (currentFilePageCount.value > 1) {
@@ -1016,7 +1017,8 @@ const imageFitCanvasWidth = (image: any) => {
     const vpt = fabricImageCanvas.viewportTransform; // 再获取画布偏移信息
     // 平移画布至让点击的图片的左上角与视窗左上角对齐位置
     let panToX = -1 * vpt[4] - (canvasWidth - imageDisplayWidth) / 2;
-    let panToY = -1 * vpt[5] - (canvasHeight - imageDisplayHeight) / 2 - image_index * (imageDisplayHeight + page_split_height);
+    const pageOffset = pageOffsets.value[image_index] ?? image_index * (imageDisplayHeight + page_split_height);
+    let panToY = -1 * vpt[5] - (canvasHeight - imageDisplayHeight) / 2 - pageOffset;
     fabricImageCanvas.relativePan(new Point(panToX, panToY));
     fabricImageCanvas.zoomToPoint(new Point(0, 0), newZoom); //画布放大
     currentZoom.value = newZoom; // 记录画布缩放比例，使得图片与视窗窗口居顶且宽度一样
@@ -1033,12 +1035,17 @@ const onCanvasGroupDblClick = (group: any) => {
         let color = group.mainRect?.get('stroke') || 'yellow'; // group>rect边框颜色
         let { image_index, label_number } = parseLabelId(labelId);
         console.log('image_index', image_index, 'label_number', label_number);
+        if (index == null || index < 0) return;
         if (prviewFormat.value == 'markdown') {
             let reactiveData = virlist1.value?.getReactiveData();
+            if (!reactiveData) return;
             let beginIndex = reactiveData.inViewBegin;
             let endIndex = reactiveData.inViewEnd;
             let virListConatiner = $dom('#virListContainer');
+            if (!virListConatiner) return;
             let containerHeight = virListConatiner.offsetHeight;
+            if (!allLabelHtmlList.value.length || beginIndex >= allLabelHtmlList.value.length) return;
+            endIndex = Math.min(endIndex, allLabelHtmlList.value.length - 1);
             let height = 0;
             for (let i = beginIndex; i <= endIndex; i++) {
                 let itemLabelId = allLabelHtmlList.value[i].id;
@@ -1153,7 +1160,8 @@ const rebuildPageToCanvas = async (image_index: number, callback?: Function) => 
     let pageHeight = imageDisplayHeight + page_split_height;
 
     let left = fabricCanvasContainer.clientWidth / 2;
-    let top = fabricCanvasContainer.clientHeight / 2 + image_index * pageHeight;
+    const pageOffset = pageOffsets.value[image_index] ?? image_index * pageHeight;
+    let top = fabricCanvasContainer.clientHeight / 2 + pageOffset;
     let host = server_url.startsWith('http') ? server_url : window.location.origin;
     const url = `${host}${image_path}`;
     const fabricImage = await FabricImage.fromURL(url, { crossOrigin: 'anonymous' });
@@ -1221,6 +1229,8 @@ const initLoadPageToCanvas = async (ocrFile: any) => {
     // currentFilePageDisplayIndex.value = 0;
 
     currentFilePageCount.value = image_count;
+    pageOffsets.value = [];
+    let offsetY = 0;
 
     // let last_image_top = 0;
     for (let i = 0; i < image_count; i++) {
@@ -1228,7 +1238,10 @@ const initLoadPageToCanvas = async (ocrFile: any) => {
         const image_path = image_info.image_path;
         const image_width = image_info.image_width;
         const image_height = image_info.image_height;
-        if (!image_path) continue;
+        if (!image_path || !image_width || !image_height) {
+            pageOffsets.value[i] = offsetY;
+            continue;
+        }
 
         let imageScaleX = fabricCanvasContainer.clientWidth / image_width;
         let imageScaleY = fabricCanvasContainer.clientHeight / image_height;
@@ -1237,12 +1250,13 @@ const initLoadPageToCanvas = async (ocrFile: any) => {
 
         let imageDisplayWidth = image_width * imageScale!;
         let imageDisplayHeight = image_height * imageScale!;
+        pageOffsets.value[i] = offsetY;
 
         let pageWidth = imageDisplayWidth;
         let pageHeight = imageDisplayHeight + page_split_height;
 
         let left = fabricCanvasContainer.clientWidth / 2;
-        let top = fabricCanvasContainer.clientHeight / 2 + i * pageHeight;
+        let top = fabricCanvasContainer.clientHeight / 2 + offsetY;
 
         const image_placeholder = new Rect({
             originX: 'center',
@@ -1261,7 +1275,7 @@ const initLoadPageToCanvas = async (ocrFile: any) => {
             let lineX1 = left - pageWidth / 2;
             let lineX2 = left + pageWidth / 2;
             // let lineY = pageHeight * (i + 1) - page_split_height / 2;
-            let lineY = fabricCanvasContainer.clientHeight / 2 + (2 * (i + 1) - 1) * (pageHeight / 2);
+            let lineY = fabricCanvasContainer.clientHeight / 2 + offsetY + imageDisplayHeight / 2 + page_split_height / 2;
             let lineColor = 'rgba(128, 128, 128, ' + (i < image_count - 1 ? 0.75 : 0) + ')'; // 线的颜色，最后一个Line纯透明不用看见
             let pageLine = new Line([lineX1, lineY, lineX2, lineY], {
                 stroke: lineColor,
@@ -1272,6 +1286,7 @@ const initLoadPageToCanvas = async (ocrFile: any) => {
             });
             fabricImageCanvas.add(pageLine);
         }
+        offsetY += pageHeight;
         let host = server_url.startsWith('http') ? server_url : window.location.origin;
         // 首次缓冲图片加载显示
         if (i <= currentSetting.value.bottomBufferPageNum) {
@@ -1524,6 +1539,7 @@ const getModelOcrResult = async (callback?: Function) => {
         duration_sum.value = res.data.duration_sum;
         token_usage_sum.value = res.data.token_usage_sum;
 
+        await ensurePreviewContent();
         callback?.();
     }
 };
@@ -1732,6 +1748,27 @@ const getImageOcrLabelInfoList = async (image_index: number): Promise<LabelInfo[
     }
     getImageOcrLabelInfoListLockSet.delete(image_index);
     return labelInfoList;
+};
+
+const ensurePreviewContent = async () => {
+    if (prviewFormat.value !== 'markdown') return;
+    if (!currentImageOcrList.value) return;
+    if (!allLabelHtmlList.value.length) return;
+    const currentLabels = currentImageOcrList.value[currentFilePageIndex.value]?.labelInfoList?.length || 0;
+    if (currentLabels > 0) {
+        await getImageOcrLabelInfoList(currentFilePageIndex.value);
+        return;
+    }
+    const nextIndex = currentImageOcrList.value.findIndex((item: any) => (item?.labelInfoList?.length || 0) > 0);
+    if (nextIndex < 0) return;
+    await getImageOcrLabelInfoList(nextIndex);
+    const labelIndex = getImageLabelIndex(nextIndex, 0);
+    if (labelIndex < 0) return;
+    isDragVirList1Scrollbar.value = true;
+    virlist1.value?.scrollIntoView(labelIndex);
+    setTimeout(() => {
+        isDragVirList1Scrollbar.value = false;
+    }, 200);
 };
 
 const getLabelInfoHtml = async (imageInfo: any, labelInfo: LabelInfo) => {
@@ -2440,7 +2477,14 @@ const parseLabelId = (labelId: string) => {
 const prviewFormat = ref('markdown'); // text or markdown
 const changePreviewFormat = (newFormat: string) => {
     prviewFormat.value = newFormat;
+    if (newFormat === 'markdown') {
+        void ensurePreviewContent();
+    }
 };
+const currentPageHasLabels = computed(() => {
+    if (!currentImageOcrList.value || !currentImageOcrList.value[currentFilePageIndex.value]) return false;
+    return (currentImageOcrList.value[currentFilePageIndex.value].labelInfoList?.length || 0) > 0;
+});
 
 //双击json/text虚拟列表时，滚动到对应的canvas页
 const onPreviewList2DblClick = (e: any) => {
@@ -2466,6 +2510,7 @@ const onPreviewList1DblClick = (e: any) => {
     let labelId = ele.id;
     let { image_index, label_number } = parseLabelId(labelId);
     console.log(labelId, image_index, label_number);
+    if (!currentImageOcrList.value || !currentImageOcrList.value[image_index]) return;
     if (currentFilePageIndex.value !== image_index) {
         isDragVirList1Scrollbar.value = true; // 禁止触发virList二次滚动
         changeFilePage(image_index);
@@ -2508,11 +2553,18 @@ const _onPreviewScroll1 = () => {
         let beginIndex = reactiveData.inViewBegin; // renderBegin
         let endIndex = reactiveData.inViewEnd; // renderEnd
 
+        if (!currentImageOcrList.value || !currentImageOcrList.value[currentFilePageIndex.value]) {
+            return;
+        }
+        if (!allLabelHtmlList.value.length || beginIndex >= allLabelHtmlList.value.length) {
+            return;
+        }
+
         let index1 = getImageLabelIndex(currentFilePageIndex.value);
-        let pageLabelCount = currentImageOcrList.value[currentFilePageIndex.value].labelInfoList.length;
+        let pageLabelCount = currentImageOcrList.value[currentFilePageIndex.value].labelInfoList?.length || 0;
         let index2 = index1 + pageLabelCount;
 
-        if (index1 < 0) {
+        if (index1 < 0 || pageLabelCount === 0) {
             return;
         }
 
@@ -2737,7 +2789,7 @@ onUnmounted(() => {});
                                         </div>
                                         <div class="flex items-center justify-between w-full">
                                             <div class="flex flex-col gap-2">
-                                                <div class="text-ellipsis overflow-hidden whitespace-nowrap">
+                                                <div class="text-ellipsis overflow-hidden h-[18px]">
                                                     <div v-if="item.file_name.length > 20" style="word-break: break-word" v-tooltip.right="item.file_name">{{ fileNameLimit(item.file_name, 20) }}</div>
                                                     <div v-else style="word-break: break-word">{{ fileNameLimit(item.file_name, 20) }}</div>
                                                 </div>
@@ -2911,31 +2963,39 @@ onUnmounted(() => {});
                                     <!-- 中 -->
                                     <!-- 识别预览区 -->
                                     <div id="virListContainer" class="w-full h-[100%] overflow-x-hidden overflow-y-auto">
-                                        <div class="w-full h-[100%]" v-if="prviewFormat === 'markdown' && allLabelHtmlList.length > 0">
-                                            <VirtList
-                                                itemKey="id"
-                                                :list="allLabelHtmlList"
-                                                ref="virlist1"
-                                                @scroll="onPreviewScroll1"
-                                                class="w-full dark:border-surface-700 overflow-x-hidden h-[100%] p-1"
-                                                :min-size="20"
-                                                @dblclick="onPreviewList1DblClick"
+                                        <div class="w-full h-[100%] relative" v-if="prviewFormat === 'markdown'">
+                                            <div
+                                                v-if="allLabelHtmlList.length === 0"
+                                                class="w-full h-[100%] flex items-center justify-center text-sm text-surface-500"
                                             >
-                                                <template #default="{ itemData }">
-                                                    <div class="w-full m-0 p-0 min-h-[50px]">
-                                                        <div class="p-1">
-                                                            <div class="ocr-html leading-6 p-2 min-h-[50px]" :id="itemData.id">
-                                                                <div class="whitespace-pre-wrap" v-html="itemData.label_html"></div>
-                                                                <div v-if="currentImageOcrList && currentImageOcrList.length > 1 && itemData.label_html" class="absolute bottom-1 right-1 p-1 text-sm text-surface-500 z-1 overflow-hidden">
-                                                                    <div v-tooltip.top="t('page.ocrresult.previewpage', [itemData.image_index + 1])" v-if="itemData.label_index == 0 || itemData.label_index == itemData.label_count - 1">
-                                                                        {{ t('page.ocrresult.previewpage', [itemData.image_index + 1]) }}
+                                            
+                                            </div>
+                                            <div v-else class="w-full h-[100%]">
+                                                <VirtList
+                                                    itemKey="id"
+                                                    :list="allLabelHtmlList"
+                                                    ref="virlist1"
+                                                    @scroll="onPreviewScroll1"
+                                                    class="w-full dark:border-surface-700 overflow-x-hidden h-[100%] p-1"
+                                                    :min-size="20"
+                                                    @dblclick="onPreviewList1DblClick"
+                                                >
+                                                    <template #default="{ itemData }">
+                                                        <div class="w-full m-0 p-0 min-h-[50px]">
+                                                            <div class="p-1">
+                                                                <div class="ocr-html leading-6 p-2 min-h-[50px]" :id="itemData.id">
+                                                                    <div class="whitespace-pre-wrap" v-html="itemData.label_html"></div>
+                                                                    <div v-if="currentImageOcrList && currentImageOcrList.length > 1 && itemData.label_html" class="absolute bottom-1 right-1 p-1 text-sm text-surface-500 z-1 overflow-hidden">
+                                                                        <div v-tooltip.top="t('page.ocrresult.previewpage', [itemData.image_index + 1])" v-if="itemData.label_index == 0 || itemData.label_index == itemData.label_count - 1">
+                                                                            {{ t('page.ocrresult.previewpage', [itemData.image_index + 1]) }}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                </template>
-                                            </VirtList>
+                                                    </template>
+                                                </VirtList>
+                                            </div>
                                         </div>
                                         <div class="w-full h-[100%]" v-if="prviewFormat === 'text' && allOcrResultList.length > 0">
                                             <VirtList

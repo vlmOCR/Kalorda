@@ -55,7 +55,7 @@ async def save_dataset_file(file: UploadFile = File(...), dataset_id: str = None
     md5_hash = hashlib.md5()
     with open(file_path, "wb") as f:
         while True:
-            chunk = await file.read(1024)
+            chunk = await file.read(5*1024*1024)
             if not chunk:
                 break
             f.write(chunk)
@@ -80,7 +80,7 @@ async def save_test_file(file: UploadFile = File(...)):
     md5_hash = hashlib.md5()
     with open(file_path, "wb") as f:
         while True:
-            chunk = await file.read(1024)
+            chunk = await file.read(5*1024*1024)
             if not chunk:
                 break
             f.write(chunk)
@@ -109,7 +109,7 @@ async def save_dataset_zip(file: UploadFile = File(...), dataset_id: str = None)
     md5_hash = hashlib.md5()
     with open(file_path, "wb") as f:
         while True:
-            chunk = await file.read(1024)
+            chunk = await file.read(5*1024*1024)
             if not chunk:
                 break
             f.write(chunk)
