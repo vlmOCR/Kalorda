@@ -17,6 +17,7 @@ import kalorda.core.gpu_task_monitor as gpu_task_monitor
 from kalorda.config import config
 from kalorda.constant import (
     DeepseekOCRCategory,
+    DeepseekOCR2Category,
     DolphinCategory,
     DotsOCRCategory,
     GotOCRCategory,
@@ -119,7 +120,7 @@ def create_dataset(
         # 检查系统管理员是否设置了该OCR权重目录
         model_type = (
             dataset_data.model_type
-        )  # 注：model_type是从1开始排序的不是从0开始 1= got_ocr 2= dotsocr 3= dolphin 4= deepseek_ocr 5= paddleocr_vl
+        )  # 注：model_type是从1开始排序的不是从0开始 1= got_ocr 2= dotsocr 3= dolphin 4= deepseek_ocr 5= paddleocr_vl, 6= hunyuan_ocr, 7= deepseek_ocr2
         matched_model = OcrModel.get_all_models()[model_type - 1]
         if not matched_model:
             return error_response(_("系统不支持此模型"))
@@ -393,6 +394,8 @@ async def import_dataset_zip(
                     continue
 
                 image_name = item.get("image")
+                if image_name is None:
+                    image_name = item.get("images")  # 兼容"images":"xxx.jpg"
                 if not isinstance(image_name, str):
                     errors.append({"line": line_no, "reason": "missing image field"})
                     continue
@@ -700,6 +703,8 @@ def get_label_image_id_list(
         category_list = DolphinCategory.get_all_categories()
     elif matched_model["code"] == "deepseek_ocr":
         category_list = DeepseekOCRCategory.get_all_categories()
+    elif matched_model["code"] == "deepseek_ocr2":
+        category_list = DeepseekOCR2Category.get_all_categories()
     elif matched_model["code"] == "paddleocr_vl":
         category_list = PaddleOCRVLCategory.get_all_categories()
     else:

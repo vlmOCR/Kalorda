@@ -22,6 +22,7 @@ import kalorda.core.gpu_task_monitor as gpu_task_monitor
 from kalorda.config import config
 from kalorda.constant import (
     DeepseekOCRCategory,
+    DeepseekOCR2Category,
     DolphinCategory,
     DotsOCRCategory,
     GotOCRCategory,
@@ -617,6 +618,8 @@ async def ocr_constants(
             category_list = GotOCRCategory.get_all_categories()
         elif model_code == "deepseek_ocr":
             category_list = DeepseekOCRCategory.get_all_categories()
+        elif model_code == "deepseek_ocr2":
+            category_list = DeepseekOCR2Category.get_all_categories()
         elif model_code == "paddleocr_vl":
             category_list = PaddleOCRVLCategory.get_all_categories()
         elif model_code == "hunyuan_ocr":

@@ -411,6 +411,24 @@ def convert_ocr_label(image: DatasetImageDB, ocr_model: OcrModel):
             )
         return "\n".join(ocr_text)
 
+    # 7、deepseek_ocr2 模型
+    if ocr_model == OcrModel.deepseek_ocr2:
+        json_labels = json.loads(ocr_label_json_str)
+        ocr_text = []
+        for item in json_labels:
+            x1, y1, x2, y2 = item["bbox"]
+            # 坐标处理，前端处理的逆操作
+            x1, y1, x2, y2 = (
+                int(x1 * 999 / image_width),
+                int(y1 * 999 / image_height),
+                int(x2 * 999 / image_width),
+                int(y2 * 999 / image_height),
+            )
+            ocr_text.append(
+                f"<|ref|>{item['category']}<|/ref|><|det|>[[{x1},{y1},{x2},{y2}]]<|/det|>\n{html_format(item['text'])}"
+            )
+        return "\n".join(ocr_text)
+
     # 5、paddleocr_vl 模型
     if ocr_model == OcrModel.paddleocr_vl:
         # 合并为一个整体字符串，忽略掉标注后的bbox信息

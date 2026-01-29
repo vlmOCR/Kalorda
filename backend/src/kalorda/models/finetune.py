@@ -20,6 +20,7 @@ class ModelType(int, Enum):
     DEEPSEEK_OCR = 4
     PADDLEOCR_VL = 5
     HUNYUAN_OCR = 6
+    DEEPSEEK_OCR2 = 7
 
 
 # 数据格式枚举

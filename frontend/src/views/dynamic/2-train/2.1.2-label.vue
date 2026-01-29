@@ -351,6 +351,70 @@ const initLabelInfo2Rect = async () => {
         return;
     }
 
+    //deepseek_ocr2 识别结果处理
+    if (dataset.value.model_type == 7 && ocr_label.includes('<|ref|>')) {
+        // 解析deepseek ocr的bbox
+        function parseDpseekBbox(bbox_str: string) {
+            let bbox = bbox_str.replace('[[', '').replace(']]', '').split(',');
+            let x1 = (parseFloat(bbox[0]) / 999) * image_width;
+            let y1 = (parseFloat(bbox[1]) / 999) * image_height;
+            let x2 = (parseFloat(bbox[2]) / 999) * image_width;
+            let y2 = (parseFloat(bbox[3]) / 999) * image_height;
+            return [x1, y1, x2, y2];
+        }
+
+        let labels = [];
+        let list = ocr_label.split('<|ref|>');
+        for (let i = 0; i < list.length; i++) {
+            if (list[i].trim().length > 0) {
+                let arr1 = list[i].split('<|/det|>');
+                if (arr1.length == 2) {
+                    let arr2 = arr1[0].trim().split('<|/ref|><|det|>');
+
+                    let category = arr2[0].trim();
+                    let bbox = parseDpseekBbox(arr2[1].trim());
+                    let text = arr1[1].trim();
+                    let label = {
+                        bbox: bbox,
+                        category: category,
+                        text: text
+                    };
+                    labels.push(label);
+                }
+            }
+        }
+
+        for (let i = 0; i < labels.length; i++) {
+            let label = labels[i] || {};
+            let bbox = label.bbox;
+            let category = labelCategories.value.find((item) => item.code.toLowerCase() == label.category.toLowerCase()) || labelCategories.value[0]; //label.category;
+            let text = label.text;
+            let labelInfo: LabelInfo = {
+                id: `label_${Date.now()}_${i}`,
+                pos1: [bbox[0], bbox[1]],
+                pos2: [bbox[2], bbox[3]],
+                labelNumber: i + 1,
+                labelStyle: { color: 'white', background: 'black' },
+                // readIndex: i,
+                imageId: currentLabelImage.value.id,
+                category: category,
+                ocrText: text,
+                // 区块数量较多时如果立即执行await markdown2Html可能会感觉区块显示会有一点延迟（1-2秒），暂时先不赋值，让界面尽快显示
+                editorValue: '',
+                deleted: false
+            };
+            buildLableRect(labelInfo);
+            imageLabelData.push(labelInfo);
+        }
+
+        // 界面上显示出区块后再赋值editorValue
+        for (let i = 0; i < imageLabelData.length; i++) {
+            let labelInfo = imageLabelData[i];
+            labelInfo.editorValue = await markdown2Html(labelInfo.ocrText);
+        }
+        return;
+    }
+
     //dots_ocr 作为默认的标准格式
     ocr_label = ocr_label.substring(ocr_label.indexOf('[{'), ocr_label.lastIndexOf('}]') + 2);
     if (!ocr_label.startsWith('[{')) return;

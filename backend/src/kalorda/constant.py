@@ -78,6 +78,14 @@ class OcrModel:
         "desc": "Tencent/1B",
         "url": "https://github.com/Tencent-Hunyuan/HunyuanOCR",
     }
+    deepseek_ocr2 = {
+        "hf_id": "deepseek-ai/DeepSeek-OCR-2",
+        "ms_id": "deepseek-ai/DeepSeek-OCR-2",
+        "code": "deepseek_ocr2",
+        "name": "Deepseek_OCR2",
+        "desc": "deepseek-ai/3B",
+        "url": "https://github.com/deepseek-ai/DeepSeek-OCR-2",
+    }
 
     def get_all_models():
         return [
@@ -87,6 +95,7 @@ class OcrModel:
             OcrModel.deepseek_ocr,
             OcrModel.paddleocr_vl,
             OcrModel.hunyuan_ocr,
+            OcrModel.deepseek_ocr2,
         ]
 
 
@@ -690,6 +699,100 @@ class DeepseekOCRCategory:
             DeepseekOCRCategory.Caption,
             DeepseekOCRCategory.Footnote,
             DeepseekOCRCategory.Image,
+        ]
+
+class DeepseekOCR2Category:
+    Text = {
+        "code": "Text",
+        "value": OCRBaseCategory.Text,
+        "name": _("普通文本"),
+        "desc": _("普通文本"),
+        "is_figure": False,
+    }
+    Formula = {
+        "code": "Formula",
+        "value": OCRBaseCategory.Formula,
+        "name": _("公式"),
+        "desc": _("数学公式"),
+        "is_figure": False,
+    }
+    Table = {
+        "code": "Table",
+        "value": OCRBaseCategory.Table,
+        "name": _("表格"),
+        "desc": _("表格"),
+        "is_figure": False,
+    }
+    List_item = {
+        "code": "List_item",
+        "value": OCRBaseCategory.List_item,
+        "name": _("列表项"),
+        "desc": _("列表项"),
+        "is_figure": False,
+    }
+    Title = {
+        "code": "Title",
+        "value": OCRBaseCategory.Title,
+        "name": _("标题"),
+        "desc": _("标题"),
+        "is_figure": False,
+    }
+    Sub_title = {
+        "code": "Sub_title",
+        "value": OCRBaseCategory.Subtitle,
+        "name": _("子标题"),
+        "desc": _("子标题"),
+        "is_figure": False,
+    }
+    Page_footer = {
+        "code": "Page_footer",
+        "value": OCRBaseCategory.Page_footer,
+        "name": _("页脚"),
+        "desc": _("页脚"),
+        "is_figure": False,
+    }
+    Page_header = {
+        "code": "Page_header",
+        "value": OCRBaseCategory.Page_header,
+        "name": _("页头"),
+        "desc": _("页头"),
+        "is_figure": False,
+    }
+    Caption = {
+        "code": "Caption",
+        "value": OCRBaseCategory.Caption,
+        "name": _("说明文字"),
+        "desc": _("说明文字"),
+        "is_figure": False,
+    }
+    Footnote = {
+        "code": "Footnote",
+        "value": OCRBaseCategory.Footnote,
+        "name": _("脚注"),
+        "desc": _("脚注"),
+        "is_figure": False,
+    }
+    Image = {
+        "code": "Image",
+        "value": OCRBaseCategory.Figure,
+        "name": _("插图插画"),
+        "desc": _("插图插画"),
+        "is_figure": True,
+    }
+
+    def get_all_categories():
+        return [
+            DeepseekOCR2Category.Text,
+            DeepseekOCR2Category.Formula,
+            DeepseekOCR2Category.Table,
+            DeepseekOCR2Category.List_item,
+            DeepseekOCR2Category.Title,
+            DeepseekOCR2Category.Sub_title,
+            DeepseekOCR2Category.Page_footer,
+            DeepseekOCR2Category.Page_header,
+            DeepseekOCR2Category.Caption,
+            DeepseekOCR2Category.Footnote,
+            DeepseekOCR2Category.Image,
         ]
 
 

@@ -8,9 +8,13 @@
 <a href="https://github.com/vllm-project/vllm" target="_blank"><img src="https://img.shields.io/badge/vLLM-blue"></a>
 <a href="https://vuejs.org/"><img src="https://img.shields.io/badge/Vue3+Vite-red"></a> 
 <a href="https://github.com/vlmOCR/Kalorda"><img src="https://img.shields.io/badge/github-repo-blue?logo=github"></a>
-<a href="https://pypi.org/project/kalorda"><img src="https://img.shields.io/badge/pypi-v0.1.3-orange"></a>
+<a href="https://pypi.org/project/kalorda"><img src="https://img.shields.io/badge/pypi-v0.1.5-orange"></a>
 <a href="https://kalorda.vlmocr.com"><img src="https://img.shields.io/badge/Website-online-yellow"></a> 
 </p>
+
+🔥 好消息：Kalorda现已支持Deepseek-OCR-2模型微调训练，特别支持v0.13/0.14等高版本vLLM对Deepseek-OCR-2的运行推理（全网首发）
+
+<img src="frontend/public/screenshot.png" width="100%" title="screenshot"/>
 
 ## 概述
 Kalorda是一个轻量vlmOCR模型微调集成平台，前端采用Typescript+Vue3+Vite，后端采用Python+FastAPI+ms-swift+vLLM构建，提供针对主流轻量vlmOCR模型的数据二次标注、微调训练、对比测试等一站式综合解决方案。
@@ -27,6 +31,7 @@ Kalorda是一个轻量vlmOCR模型微调集成平台，前端采用Typescript+Vu
 | Deepseek_OCR | 3B     | 2025年11月 | 深度求索 |
 | PaddleOCR_VL | 0.9B   | 2025年11月 | 百度 |
 | HunyuanOCR   | 1B     | 2025年12月 | 腾讯 |
+| Deepseek_OCR2 | 3B     | 2026年1月 | 深度求索 |
 
 更多模型会持续集成，欢迎大家提交PR或issue一起完善。
 
@@ -147,9 +152,9 @@ pip install build
 python -m build
 ```
 打包后的whl文件默认保存在/backend/dist目录下,
-例如：kalorda-0.1.1-py3-none-any.whl 安装whl文件命令为
+例如：kalorda-0.1.5-py3-none-any.whl 安装whl文件命令为
 ```
-pip install kalorda-0.1.1-py3-none-any.whl
+pip install kalorda-0.1.5-py3-none-any.whl
 ```
 ## 💡联系交流
 邮箱：[postmaster@vlmocr.com](mailto:postmaster@vlmocr.com)

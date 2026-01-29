@@ -5,7 +5,7 @@ import json
 import multiprocessing
 import time
 from datetime import datetime
-
+import traceback
 import psutil
 
 from kalorda.database.database import GPUTaskDB, database, db_manager, resource_locks
@@ -55,6 +55,7 @@ def dynamically_load_handler(handler_path):
         return handler_func
 
     except (ImportError, AttributeError, ValueError, TypeError) as e:
+        traceback.print_exc()
         logger.error(f"动态加载处理器失败: {e}")
         raise
 

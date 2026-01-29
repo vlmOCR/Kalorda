@@ -1,5 +1,6 @@
 import kalorda.vllm_infer.dotsocr.prompts as dotsocr_prompts
 from kalorda.vllm_infer.deepseek_ocr.config import PROMPT as deepseek_ocr_prompt
+from kalorda.vllm_infer.deepseek_ocr2.config import PROMPT as deepseek_ocr_prompt2
 from kalorda.vllm_infer.dolphin.prompts import dolphin_prompt
 from kalorda.vllm_infer.hunyuan_ocr.prompts import hunyuan_prompt
 
@@ -17,6 +18,8 @@ def get_sft_prompt(model_code: str):
         prompt = dolphin_prompt["text"]
     if model_code.lower() == "deepseek_ocr":  # DeepseekOCR
         prompt = deepseek_ocr_prompt
+    if model_code.lower() == "deepseek_ocr2":  # DeepseekOCR2
+        prompt = deepseek_ocr_prompt2
     if model_code.lower() == "paddleocr_vl":  # PaddleOCRVL
         prompt = "Parse the reading order of this document."
     if model_code.lower() == "hunyuan_ocr":  # HunyuanOCR

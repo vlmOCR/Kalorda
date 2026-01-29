@@ -1496,6 +1496,9 @@ const getModelOcrResult = async (callback?: Function) => {
                 case 4: // deepseek_ocr
                     bboxLength = item.ocr_result.split('<|det|>').length - 1;
                     break;
+                case 7: // deepseek_ocr2
+                    bboxLength = item.ocr_result.split('<|det|>').length - 1;
+                    break;
                 case 5: //paddleocr_vl
                     bboxLength = item.ocr_result.length > 0 ? 1 : 0;
                     break;
@@ -1846,6 +1849,67 @@ const _getImageOcrLabelInfoList = async (image_index: number): Promise<LabelInfo
     //deepseek_ocr 识别结果处理
     if (currentModelInfo.value.model_type == 4 && ocr_label.includes('<|ref|>')) {
         // 解析deepseek ocr的bbox
+        function parseDpseekBbox(bbox_str: string) {
+            let bbox = bbox_str.replace('[[', '').replace(']]', '').split(',');
+            let x1 = (parseFloat(bbox[0]) / 999) * image_width;
+            let y1 = (parseFloat(bbox[1]) / 999) * image_height;
+            let x2 = (parseFloat(bbox[2]) / 999) * image_width;
+            let y2 = (parseFloat(bbox[3]) / 999) * image_height;
+            return [x1, y1, x2, y2];
+        }
+
+        let labels = [];
+        let list = ocr_label.split('<|ref|>');
+        for (let i = 0; i < list.length; i++) {
+            if (list[i].trim().length > 0) {
+                let arr1 = list[i].split('<|/det|>');
+                if (arr1.length == 2) {
+                    let arr2 = arr1[0].trim().split('<|/ref|><|det|>');
+                    let category = arr2[0].trim();
+                    let bbox = parseDpseekBbox(arr2[1].trim());
+                    let text = arr1[1].trim();
+                    let label = {
+                        bbox: bbox,
+                        category: category,
+                        text: text
+                    };
+                    labels.push(label);
+                }
+            }
+        }
+
+        let labelInfoList = [];
+        for (let i = 0; i < labels.length; i++) {
+            let label = labels[i] || {};
+            let bbox = label.bbox;
+            let category = (currentModelInfo.value.category_list.find((item: any) => item.code.toLowerCase() == label.category.toLowerCase()) || currentModelInfo.value.category_list[0]) as LabelCategory; //label.category;
+            let text = label.text;
+            // 如果是插图
+            if (category.is_figure) {
+                text = `\\begin{figure}\\includegraphics\[position=${bbox.join(',')}\]{}\\end{figure}`;
+            }
+            let labelInfo: LabelInfo = {
+                id: `image_${image_index}_label_${i}`,
+                pos1: [bbox[0], bbox[1]],
+                pos2: [bbox[2], bbox[3]],
+                labelNumber: i + 1,
+                labelStyle: { color: 'white', background: 'black' },
+                imageId: image_info.image_uuid,
+                category: category,
+                ocrText: text,
+                // 区块数量较多时如果立即执行await markdown2Html可能会感觉区块显示会有一点延迟（1-2秒），暂时先不赋值，让界面尽快显示
+                editorValue: '',
+                imageIndex: image_index
+            };
+            labelInfo.editorValue = await getLabelInfoHtml(image_info, labelInfo);
+            labelInfoList.push(labelInfo);
+        }
+        return labelInfoList;
+    }
+
+    //deepseek_ocr2 识别结果处理
+    if (currentModelInfo.value.model_type == 7 && ocr_label.includes('<|ref|>')) {
+        // 解析deepseek ocr2的bbox
         function parseDpseekBbox(bbox_str: string) {
             let bbox = bbox_str.replace('[[', '').replace(']]', '').split(',');
             let x1 = (parseFloat(bbox[0]) / 999) * image_width;

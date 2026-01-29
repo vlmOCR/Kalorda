@@ -422,7 +422,7 @@ class GPUTaskDB(BaseDBModel):
 class FineTuneTaskDB(BaseDBModel):
     name = CharField(max_length=100)  # 任务名称
     description = TextField(null=True)  # 任务描述
-    target_model = IntegerField()  # 目标模型: 1=got_ocr, 2=dotsOCR, 3=dolphin, 4=deepseek_ocr, 5=paddleocr_vl
+    target_model = IntegerField()  # 目标模型: 1=got_ocr, 2=dotsOCR, 3=dolphin, 4=deepseek_ocr, 5=paddleocr_vl, 6=hunyuan_ocr, 7=deepseek_ocr2
     # 暂时不设置through_model，稍后设置
     datasets = ManyToManyField(DatasetDB, backref="finetune_tasks")
     data_format = CharField(max_length=20, default="Alpaca")  # 数据格式: Alpaca, ShareGPT, ChatML, QueryResponse
@@ -676,6 +676,11 @@ def init_database():
                     "key": "hunyuan_ocr_weights_dir",
                     "value": "",
                     "description": "HUNYUAN_OCR权重本地路径",
+                },
+                {
+                    "key": "deepseek_ocr2_weights_dir",
+                    "value": "",
+                    "description": "DEEPSEEK_OCR2权重本地路径",
                 },
             ]
 

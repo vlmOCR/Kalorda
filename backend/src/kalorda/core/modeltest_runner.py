@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Any
 
 import torch
+import traceback
 
 from kalorda.config import config
 from kalorda.constant import OcrModel, TestOCRStatus
@@ -135,6 +136,7 @@ async def modeltest_with_vllm(user_id: int, file_id_list: list[int], model_list:
                 #     if vllm_engine is not None
                 #     else f"[Error] vllm engine 加载 {model_code} 模型失败"
                 # )
+                traceback.print_exc()
                 ocr_result = ""
                 tokens_count = 0
                 status = TestOCRStatus.failed["value"]
