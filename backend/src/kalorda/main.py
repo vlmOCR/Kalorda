@@ -30,12 +30,17 @@ from kalorda.utils.exception_handler import setup_exception_handlers
 from kalorda.utils.i18n import setup_i18n_middleware
 
 # 导入自定义日志工具
-from kalorda.utils.logger import critical, debug, error, info, setup_logger, warning
+from kalorda.utils.logger import error, info, setup_logger
 from kalorda.utils.zmq_pubsub import (
     DEFAULT_PORT,
     zmq_message_publisher,
     zmq_publish,
 )
+
+# Ensure plugins are registered in every new Python process.
+import kalorda.vllm_infer.vllm_plugins  # noqa: F401
+
+os.environ.setdefault("VLLM_IMPORTS", "kalorda.vllm_infer.vllm_plugins")
 
 # 设置日志
 logger = setup_logger("kalorda", log_level=config.LOG_LEVEL)

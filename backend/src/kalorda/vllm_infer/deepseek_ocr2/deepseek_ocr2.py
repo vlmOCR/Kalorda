@@ -38,7 +38,11 @@ from vllm.multimodal.parse import (
     ImageSize,
     MultiModalDataItems,
 )
-from vllm.multimodal.profiling import BaseDummyInputsBuilder
+try:
+    from vllm.multimodal.profiling import BaseDummyInputsBuilder
+except Exception:
+    from vllm.multimodal.processing import BaseDummyInputsBuilder
+# from vllm.multimodal.profiling import BaseDummyInputsBuilder
 from vllm.multimodal.processing import (
     # BaseDummyInputsBuilder,
     BaseMultiModalProcessor,

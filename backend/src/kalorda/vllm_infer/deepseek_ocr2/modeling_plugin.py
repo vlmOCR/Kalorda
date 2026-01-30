@@ -1,6 +1,5 @@
 def register():
     from vllm import ModelRegistry
-    import vllm
 
     if "DeepseekOCR2ForCausalLM" not in ModelRegistry.get_supported_archs():
         from .deepseek_ocr2 import DeepseekOCR2ForCausalLM

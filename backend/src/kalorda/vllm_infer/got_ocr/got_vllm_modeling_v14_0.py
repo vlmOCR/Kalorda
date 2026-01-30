@@ -49,7 +49,10 @@ from vllm.multimodal.processing import (
     PromptReplacement,
     PromptUpdate,
 )
-from vllm.multimodal.profiling import BaseDummyInputsBuilder
+try:
+    from vllm.multimodal.profiling import BaseDummyInputsBuilder
+except Exception:
+    from vllm.multimodal.processing import BaseDummyInputsBuilder
 from vllm.sequence import IntermediateTensors
 
 from .blip_process import BlipImageEvalProcessor

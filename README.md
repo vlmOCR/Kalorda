@@ -12,7 +12,7 @@
 <a href="https://kalorda.vlmocr.com"><img src="https://img.shields.io/badge/Website-online-yellow"></a> 
 </p>
 
-🔥 好消息：Kalorda现已支持Deepseek-OCR-2模型微调训练，特别支持v0.13/0.14等高版本vLLM对Deepseek-OCR-2的运行推理（全网首发）
+🔥 好消息：Kalorda现已支持Deepseek-OCR-2模型微调训练，特别支持v0.13/0.14/0.15等高版本vLLM对Deepseek-OCR-2的运行推理（全网首发）
 
 <img src="frontend/public/screenshot.png" width="100%" title="screenshot"/>
 
