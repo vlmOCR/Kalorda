@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { shallowRef, triggerRef } from 'vue';
 import { delayDebounce } from '@/utils/Common';
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
@@ -47,8 +48,10 @@ interface Summary {
     remaining_time: string;
 }
 
-const train_epochs = ref<Array<TrainEpoch>>([]);
-const eval_epochs = ref<Array<EvalEpoch>>([]);
+const trainEpochsRaw: Array<TrainEpoch> = [];
+const evalEpochsRaw: Array<EvalEpoch> = [];
+const train_epochs = shallowRef<Array<TrainEpoch>>(trainEpochsRaw);
+const eval_epochs = shallowRef<Array<EvalEpoch>>(evalEpochsRaw);
 // 训练的总结性日志
 const summary = ref<Summary>({
     train_runtime: 0,
@@ -72,32 +75,75 @@ const eval_summary = ref<EvalEpoch>({
     train_speed: 0
 });
 
-const train_loss_series = ref<number[]>([0]); // 训练数据loss
-const train_gnorm_series = ref<number[]>([0]); // 训练数据grad_norm
-const train_lrate_series = ref<number[]>([0]); // 训练数据learning_rate
-const train_token_acc_series = ref<number[]>([0]); // 训练数据token_acc
-const train_train_speed_series = ref<number[]>([0]); // 训练数据train_speed
+const lastLogsRef = ref<Array<any> | null>(null);
+const lastProcessedIndex = ref(0);
+const seenTrainMsgIds = new Set<string>();
+const seenEvalMsgIds = new Set<string>();
+const evalGlobalStepSet = new Set<number>();
+const latestGlobalStep = ref(0);
 
-const eval_loss_series = ref<number[]>([0]); // 评估数据loss
-const eval_token_acc_series = ref<number[]>([0]); // 评估数据token_acc
-const eval_train_speed_series = ref<number[]>([0]); // 评估数据train_speed
-// x轴刻度
-const xAxis = ref<number[]>([]);
+const trainLossSeriesRaw: number[] = [0];
+const trainGnormSeriesRaw: number[] = [0];
+const trainLrateSeriesRaw: number[] = [0];
+const trainTokenAccSeriesRaw: number[] = [0];
+const trainTrainSpeedSeriesRaw: number[] = [0];
+
+const evalLossSeriesRaw: number[] = [0];
+const evalTokenAccSeriesRaw: number[] = [0];
+const evalTrainSpeedSeriesRaw: number[] = [0];
+const xAxisRaw: number[] = [];
+
+const train_loss_series = shallowRef<number[]>(trainLossSeriesRaw); // ????loss
+const train_gnorm_series = shallowRef<number[]>(trainGnormSeriesRaw); // ????grad_norm
+const train_lrate_series = shallowRef<number[]>(trainLrateSeriesRaw); // ????learning_rate
+const train_token_acc_series = shallowRef<number[]>(trainTokenAccSeriesRaw); // ????token_acc
+const train_train_speed_series = shallowRef<number[]>(trainTrainSpeedSeriesRaw); // ????train_speed
+
+const eval_loss_series = shallowRef<number[]>(evalLossSeriesRaw); // ????loss
+const eval_token_acc_series = shallowRef<number[]>(evalTokenAccSeriesRaw); // ????token_acc
+const eval_train_speed_series = shallowRef<number[]>(evalTrainSpeedSeriesRaw); // ????train_speed
+// x???
+const xAxis = shallowRef<number[]>(xAxisRaw);
+
+const notifySeries = () => {
+    train_epochs.value = trainEpochsRaw;
+    eval_epochs.value = evalEpochsRaw;
+    train_loss_series.value = trainLossSeriesRaw;
+    train_gnorm_series.value = trainGnormSeriesRaw;
+    train_lrate_series.value = trainLrateSeriesRaw;
+    train_token_acc_series.value = trainTokenAccSeriesRaw;
+    train_train_speed_series.value = trainTrainSpeedSeriesRaw;
+    eval_loss_series.value = evalLossSeriesRaw;
+    eval_token_acc_series.value = evalTokenAccSeriesRaw;
+    eval_train_speed_series.value = evalTrainSpeedSeriesRaw;
+    xAxis.value = xAxisRaw;
+
+    triggerRef(train_epochs);
+    triggerRef(eval_epochs);
+    triggerRef(train_loss_series);
+    triggerRef(train_gnorm_series);
+    triggerRef(train_lrate_series);
+    triggerRef(train_token_acc_series);
+    triggerRef(train_train_speed_series);
+    triggerRef(eval_loss_series);
+    triggerRef(eval_token_acc_series);
+    triggerRef(eval_train_speed_series);
+    triggerRef(xAxis);
+};
+
 
 const resetChart = () => {
-    train_epochs.value.length = 0;
-    train_loss_series.value.length = 0;
-    train_gnorm_series.value.length = 0;
-    train_lrate_series.value.length = 0;
-    train_token_acc_series.value.length = 0;
-    train_train_speed_series.value.length = 0;
-
-    eval_epochs.value.length = 0;
-    eval_loss_series.value.length = 0;
-    eval_token_acc_series.value.length = 0;
-    eval_train_speed_series.value.length = 0;
-
-    xAxis.value.length = 0;
+    trainEpochsRaw.length = 0;
+    evalEpochsRaw.length = 0;
+    trainLossSeriesRaw.length = 0;
+    trainGnormSeriesRaw.length = 0;
+    trainLrateSeriesRaw.length = 0;
+    trainTokenAccSeriesRaw.length = 0;
+    trainTrainSpeedSeriesRaw.length = 0;
+    evalLossSeriesRaw.length = 0;
+    evalTokenAccSeriesRaw.length = 0;
+    evalTrainSpeedSeriesRaw.length = 0;
+    xAxisRaw.length = 0;
 
     summary.value = {
         train_runtime: 0,
@@ -110,6 +156,23 @@ const resetChart = () => {
         elapsed_time: '',
         remaining_time: ''
     };
+
+    eval_summary.value = {
+        id: '',
+        eval_loss: 0,
+        eval_token_acc: 0,
+        epoch: 0,
+        global_step: 0,
+        train_speed: 0
+    };
+
+    lastProcessedIndex.value = 0;
+    latestGlobalStep.value = 0;
+    seenTrainMsgIds.clear();
+    seenEvalMsgIds.clear();
+    evalGlobalStepSet.clear();
+
+    notifySeries();
 };
 
 const parseJSON = (str: string) => {
@@ -124,71 +187,73 @@ const parseLogs = (logs: Array<any>) => {
     }, 400);
 };
 
-const _parseLogs = (logs: Array<any>) => {
-    if (logs.length == 0) {
-        resetChart();
-        return;
-    }
-
-    let train_epochs_arr: any = [];
-    let eval_epochs_arr: any = [];
+const rebuildFromLogs = (logs: Array<any>) => {
+    resetChart();
     let summary_obj: any = {};
     let eval_summary_obj: any = {};
     let latest_global_step = 0;
+
+    seenTrainMsgIds.clear();
+    seenEvalMsgIds.clear();
+    evalGlobalStepSet.clear();
+
     for (let i = 0; i < logs.length; i++) {
         let msg_id = logs[i].msg_id;
         let log = logs[i].data.log;
-        // 单步训练日志，包含loss、grad_norm、learning_rate、token_acc、epoch、global_step/max_steps
         if (log.startsWith("{'loss':")) {
-            let data = parseJSON(log);
-            if (train_epochs_arr.find((epoch: any) => epoch.id == msg_id)) {
+            if (seenTrainMsgIds.has(msg_id)) {
                 continue;
             }
+            seenTrainMsgIds.add(msg_id);
+            let data = parseJSON(log);
             let global_step = Number(data['global_step/max_steps'].split('/')[0]);
             let max_steps = Number(data['global_step/max_steps'].split('/')[1]);
             let train_epoch = {
-                id: msg_id, // 每个log的唯一标识msg_id
+                id: msg_id,
                 loss: data['loss'],
                 grad_norm: data['grad_norm'],
                 learning_rate: data['learning_rate'],
                 token_acc: data['token_acc'],
                 epoch: data['epoch'],
-                global_step: global_step, // 类似23/50的格式，取23
+                global_step: global_step,
                 train_speed: data['train_speed(iter/s)']
             };
-            train_epochs_arr.push(train_epoch);
+            trainEpochsRaw.push(train_epoch);
+            trainLossSeriesRaw.push(train_epoch.loss);
+            trainGnormSeriesRaw.push(train_epoch.grad_norm);
+            trainLrateSeriesRaw.push(train_epoch.learning_rate);
+            trainTokenAccSeriesRaw.push(train_epoch.token_acc);
+            trainTrainSpeedSeriesRaw.push(train_epoch.train_speed);
+            xAxisRaw.push(train_epoch.global_step || xAxisRaw.length + 1);
 
-            // 总步数，第一条日志出现就可提取到数值进行赋值
             if (!summary_obj.max_steps && max_steps > 0) {
                 summary_obj.max_steps = max_steps;
             }
             if (global_step > latest_global_step) {
                 latest_global_step = global_step;
             }
-            // 进度百分比
             if (typeof data['percentage'] === 'string') {
                 summary_obj.percentage = Number(data['percentage'].replace('%', ''));
             }
-            // 已用时间
             summary_obj.elapsed_time = data['elapsed_time'];
-            // 剩余时间
             summary_obj.remaining_time = data['remaining_time'];
         }
 
         if (log.startsWith("{'eval_loss':")) {
-            let data = parseJSON(log);
-            if (eval_epochs_arr.find((epoch: any) => epoch.id == msg_id)) {
+            if (seenEvalMsgIds.has(msg_id)) {
                 continue;
             }
+            seenEvalMsgIds.add(msg_id);
+            let data = parseJSON(log);
             let global_step = Number(data['global_step/max_steps'].split('/')[0]);
             let max_steps = Number(data['global_step/max_steps'].split('/')[1]);
             let eval_epoch = {
-                id: msg_id, // 每个log的唯一标识msg_id
+                id: msg_id,
                 eval_loss: data['eval_loss'],
                 eval_token_acc: data['eval_token_acc'],
                 eval_train_speed: data['train_speed(iter/s)'],
                 epoch: data['epoch'],
-                global_step: global_step, // 类似23/50的格式，取23
+                global_step: global_step,
                 train_speed: data['train_speed(iter/s)']
             };
             if (!summary_obj.max_steps && max_steps > 0) {
@@ -197,16 +262,17 @@ const _parseLogs = (logs: Array<any>) => {
             if (global_step > latest_global_step) {
                 latest_global_step = global_step;
             }
-            // 因为eval总结性日志和普通eval打印格式一样，需要判断处理一下
-            let find_index = eval_epochs_arr.findIndex((item: any) => item.global_step == eval_epoch.global_step);
-            if (find_index < 0) {
-                eval_epochs_arr.push(eval_epoch);
+            if (!evalGlobalStepSet.has(eval_epoch.global_step)) {
+                evalGlobalStepSet.add(eval_epoch.global_step);
+                evalEpochsRaw.push(eval_epoch);
+                evalLossSeriesRaw.push(eval_epoch.eval_loss);
+                evalTokenAccSeriesRaw.push(eval_epoch.eval_token_acc);
+                evalTrainSpeedSeriesRaw.push(eval_epoch.train_speed);
             } else {
-                eval_summary_obj = eval_epoch; // eval的总结性日志
+                eval_summary_obj = eval_epoch;
             }
         }
 
-        // 最后总结日志，包含train_runtime、train_samples_per_second、train_steps_per_second、train_loss、epoch
         if (log.startsWith("{'train_runtime':")) {
             let data = parseJSON(log);
             summary_obj.train_runtime = Number(data['train_runtime']);
@@ -227,45 +293,132 @@ const _parseLogs = (logs: Array<any>) => {
         summary_obj.percentage = 100;
     }
 
-    let train_loss_arr = [];
-    let train_gnorm_arr = [];
-    let train_lrate_arr = [];
-    let train_token_acc_arr = [];
-    let train_train_speed_arr = [];
-    let eval_loss_arr = [];
-    let eval_token_acc_arr = [];
-    let eval_train_speed_arr = [];
-    let xAxis_arr = [];
-
-    for (let i = 0; i < train_epochs_arr.length; i++) {
-        let epoch = train_epochs_arr[i];
-        train_loss_arr.push(epoch.loss);
-        train_gnorm_arr.push(epoch.grad_norm);
-        train_lrate_arr.push(epoch.learning_rate);
-        train_token_acc_arr.push(epoch.token_acc);
-        train_train_speed_arr.push(epoch.train_speed);
-        xAxis_arr.push(epoch.global_step || i + 1);
-    }
-    for (let i = 0; i < eval_epochs_arr.length; i++) {
-        let epoch = eval_epochs_arr[i];
-        eval_loss_arr.push(epoch.eval_loss);
-        eval_token_acc_arr.push(epoch.eval_token_acc);
-        eval_train_speed_arr.push(epoch.train_speed);
-    }
-
-    train_epochs.value = train_epochs_arr;
-    eval_epochs.value = eval_epochs_arr;
-    xAxis.value = xAxis_arr;
-    train_loss_series.value = train_loss_arr;
-    train_gnorm_series.value = train_gnorm_arr;
-    train_lrate_series.value = train_lrate_arr;
-    train_token_acc_series.value = train_token_acc_arr;
-    train_train_speed_series.value = train_train_speed_arr;
-    eval_loss_series.value = eval_loss_arr;
-    eval_token_acc_series.value = eval_token_acc_arr;
-    eval_train_speed_series.value = eval_train_speed_arr;
     summary.value = summary_obj;
-    eval_summary.value = eval_summary_obj; // 暂时没用上
+    eval_summary.value = eval_summary_obj;
+    latestGlobalStep.value = latest_global_step;
+    lastProcessedIndex.value = logs.length;
+
+    notifySeries();
+};
+
+const _parseLogs = (logs: Array<any>) => {
+    if (logs.length == 0) {
+        resetChart();
+        lastLogsRef.value = logs;
+        return;
+    }
+
+    if (lastLogsRef.value !== logs || logs.length < lastProcessedIndex.value) {
+        lastLogsRef.value = logs;
+        rebuildFromLogs(logs);
+        return;
+    }
+
+    let summary_obj: any = { ...summary.value };
+    let eval_summary_obj: any = { ...eval_summary.value };
+    let latest_global_step = latestGlobalStep.value;
+
+    for (let i = lastProcessedIndex.value; i < logs.length; i++) {
+        let msg_id = logs[i].msg_id;
+        let log = logs[i].data.log;
+        if (log.startsWith("{'loss':")) {
+            if (seenTrainMsgIds.has(msg_id)) {
+                continue;
+            }
+            seenTrainMsgIds.add(msg_id);
+            let data = parseJSON(log);
+            let global_step = Number(data['global_step/max_steps'].split('/')[0]);
+            let max_steps = Number(data['global_step/max_steps'].split('/')[1]);
+            let train_epoch = {
+                id: msg_id,
+                loss: data['loss'],
+                grad_norm: data['grad_norm'],
+                learning_rate: data['learning_rate'],
+                token_acc: data['token_acc'],
+                epoch: data['epoch'],
+                global_step: global_step,
+                train_speed: data['train_speed(iter/s)']
+            };
+            trainEpochsRaw.push(train_epoch);
+            trainLossSeriesRaw.push(train_epoch.loss);
+            trainGnormSeriesRaw.push(train_epoch.grad_norm);
+            trainLrateSeriesRaw.push(train_epoch.learning_rate);
+            trainTokenAccSeriesRaw.push(train_epoch.token_acc);
+            trainTrainSpeedSeriesRaw.push(train_epoch.train_speed);
+            xAxisRaw.push(train_epoch.global_step || xAxisRaw.length + 1);
+
+            if (!summary_obj.max_steps && max_steps > 0) {
+                summary_obj.max_steps = max_steps;
+            }
+            if (global_step > latest_global_step) {
+                latest_global_step = global_step;
+            }
+            if (typeof data['percentage'] === 'string') {
+                summary_obj.percentage = Number(data['percentage'].replace('%', ''));
+            }
+            summary_obj.elapsed_time = data['elapsed_time'];
+            summary_obj.remaining_time = data['remaining_time'];
+        }
+
+        if (log.startsWith("{'eval_loss':")) {
+            if (seenEvalMsgIds.has(msg_id)) {
+                continue;
+            }
+            seenEvalMsgIds.add(msg_id);
+            let data = parseJSON(log);
+            let global_step = Number(data['global_step/max_steps'].split('/')[0]);
+            let max_steps = Number(data['global_step/max_steps'].split('/')[1]);
+            let eval_epoch = {
+                id: msg_id,
+                eval_loss: data['eval_loss'],
+                eval_token_acc: data['eval_token_acc'],
+                eval_train_speed: data['train_speed(iter/s)'],
+                epoch: data['epoch'],
+                global_step: global_step,
+                train_speed: data['train_speed(iter/s)']
+            };
+            if (!summary_obj.max_steps && max_steps > 0) {
+                summary_obj.max_steps = max_steps;
+            }
+            if (global_step > latest_global_step) {
+                latest_global_step = global_step;
+            }
+            if (!evalGlobalStepSet.has(eval_epoch.global_step)) {
+                evalGlobalStepSet.add(eval_epoch.global_step);
+                evalEpochsRaw.push(eval_epoch);
+                evalLossSeriesRaw.push(eval_epoch.eval_loss);
+                evalTokenAccSeriesRaw.push(eval_epoch.eval_token_acc);
+                evalTrainSpeedSeriesRaw.push(eval_epoch.train_speed);
+            } else {
+                eval_summary_obj = eval_epoch;
+            }
+        }
+
+        if (log.startsWith("{'train_runtime':")) {
+            let data = parseJSON(log);
+            summary_obj.train_runtime = Number(data['train_runtime']);
+            summary_obj.train_samples_per_second = Number(data['train_samples_per_second']);
+            summary_obj.train_steps_per_second = Number(data['train_steps_per_second']);
+            summary_obj.train_loss = Number(data['train_loss']);
+            summary_obj.total_epoch = Number(data['epoch']);
+        }
+    }
+
+    if (summary_obj.max_steps && latest_global_step) {
+        let computed_percentage = Math.min(100, (latest_global_step / summary_obj.max_steps) * 100);
+        if (!summary_obj.percentage || computed_percentage > summary_obj.percentage) {
+            summary_obj.percentage = Number(computed_percentage.toFixed(2));
+        }
+    }
+    if (summary_obj.train_runtime) {
+        summary_obj.percentage = 100;
+    }
+
+    summary.value = summary_obj;
+    eval_summary.value = eval_summary_obj;
+    latestGlobalStep.value = latest_global_step;
+    lastProcessedIndex.value = logs.length;
+    notifySeries();
 };
 
 const resizeObserver = new ResizeObserver((entries) => {
@@ -297,11 +450,10 @@ const unwatchChartContainerResize = () => {
 };
 
 watch(
-    () => props.logs,
-    (newLogs: Array<any>) => {
-        parseLogs(newLogs);
-    },
-    { deep: 1 }
+    () => props.logs.length,
+    () => {
+        parseLogs(props.logs as Array<any>);
+    }
 );
 
 onMounted(() => {

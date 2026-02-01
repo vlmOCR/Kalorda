@@ -24,7 +24,18 @@ const logSearchText = ref('');
 const caseSensitive = ref(false); // 默认不区分大小写搜索
 const searchedCount = ref(0);
 const searchedIndex = ref(0);
-const searchedMap = ref<Map<number, string>>(new Map());
+const searchPrefixCounts = ref<number[]>([]);
+const lastSearchBuildLength = ref(0);
+const searchRegExp = computed(() => {
+    if (!logSearchVisible.value || !logSearchText.value) {
+        return null;
+    }
+    try {
+        return caseSensitive.value ? new RegExp(logSearchText.value) : new RegExp(logSearchText.value, 'ig');
+    } catch {
+        return null;
+    }
+});
 
 const scrollToBottom = () => {
     virtualScrollerRef.value.scrollToBottom();
@@ -34,7 +45,7 @@ const scrollToBottom = () => {
 const logSearch = (show: boolean) => {
     logSearchVisible.value = show;
     if (show && logSearchText.value.length > 0) {
-        buildSearchIndexMap();
+        buildSearchIndexData();
     }
 };
 defineExpose({
@@ -57,20 +68,29 @@ const idxBarWidth = computed(() => {
 //     msg_id: '',
 //     data: { log:''}
 // }
+let pendingLogs: Array<any> | null = null;
+let scheduleLogsFlush = false;
 const setVirtualLogs = (newLogs: Array<any>) => {
+    pendingLogs = newLogs;
+    if (scheduleLogsFlush) {
+        return;
+    }
+    scheduleLogsFlush = true;
     requestAnimationFrame(() => {
-        if (newLogs.length == 0) {
+        scheduleLogsFlush = false;
+        const nextLogs = pendingLogs || [];
+        pendingLogs = null;
+        if (nextLogs.length == 0) {
             logSearch(false);
         }
-        // newLogs.forEach((item) => item.msg_id += `_${Math.random()}`); // 防外接传进来的msg_id有重复
-        virtualLogs.value = newLogs;
+        // newLogs.forEach((item) => item.msg_id += `_${Math.random()}`); // avoid duplicate msg_id from external input
+        virtualLogs.value = nextLogs;
         setTimeout(() => {
             scrollToBottom();
         }, 0);
     });
 };
 
-//标记关键的训练进度日志
 const markGloablStepLog = (html_log: string, orginal_log: string, log_index: number) => {
     if (orginal_log.startsWith("{'loss':")) {
         //提取 'global_step/max_steps': '12/30' 中的12
@@ -110,14 +130,18 @@ const htmlParse = (orginal_log: string, log_index: number) => {
         html_log = html_log.replaceAll(/ /g, '&nbsp;');
     }
 
-    if (!logSearchText.value || logSearchText.value.length == 0 || !logSearchVisible.value) {
+    const reg = searchRegExp.value;
+    if (!reg) {
         return markGloablStepLog(html_log, orginal_log, log_index);
     }
     // 搜索高亮处理
     let sub_index = 0;
-    let reg = caseSensitive.value ? new RegExp(logSearchText.value) : new RegExp(logSearchText.value, 'ig');
+    const baseIndex = getSearchBaseIndex(log_index);
+    if (reg.global) {
+        reg.lastIndex = 0;
+    }
     html_log = html_log.replace(reg, (match) => {
-        let is_active = searchedMap.value.get(searchedIndex.value) == `${log_index}-${sub_index}`;
+        let is_active = searchedIndex.value == baseIndex + sub_index;
         let highlight_log = `<span class="text-hightlight${is_active ? ' text-hightlight-active' : ''}" data-index="${log_index}-${sub_index}">${match}</span>`;
         sub_index += 1;
         return highlight_log;
@@ -139,7 +163,8 @@ const searchIndexMoveFirstOrLast = () => {
 };
 
 const searchIndexMove = (direction: number) => {
-    if (!logSearchText.value || logSearchText.value.length == 0 || !logSearchVisible.value) {
+    const reg = searchRegExp.value;
+    if (!reg) {
         return;
     }
     let index = searchedIndex.value + direction;
@@ -149,58 +174,102 @@ const searchIndexMove = (direction: number) => {
     scrollToSearchText(index);
 };
 
+const getSearchBaseIndex = (logIndex: number) => {
+    if (logIndex <= 0) {
+        return 0;
+    }
+    return searchPrefixCounts.value[logIndex - 1] || 0;
+};
+
+const findLogIndexBySearchIndex = (index: number) => {
+    let left = 0;
+    let right = searchPrefixCounts.value.length - 1;
+    while (left <= right) {
+        const mid = Math.floor((left + right) / 2);
+        const value = searchPrefixCounts.value[mid];
+        if (value > index) {
+            right = mid - 1;
+        } else {
+            left = mid + 1;
+        }
+    }
+    return left;
+};
+
 const scrollToSearchText = (index: number) => {
     searchedIndex.value = index;
-    let log_index = searchedMap.value.get(index)?.split('-')[0] || '0';
-    let target_log_index = Number(log_index);
+    let target_log_index = findLogIndexBySearchIndex(index);
     if (target_log_index < 0) {
         target_log_index = 0;
     }
     virtualScrollerRef.value.scrollToIndex(target_log_index);
 };
 
-const buildSearchIndexMap = () => {
-    if (!logSearchText.value || logSearchText.value.length == 0 || !logSearchVisible.value) {
+const buildSearchIndexData = () => {
+    const reg = searchRegExp.value;
+    if (!reg) {
         searchedCount.value = 0;
         searchedIndex.value = 0;
-        searchedMap.value.clear();
+        searchPrefixCounts.value = [];
+        lastSearchBuildLength.value = 0;
         return;
     }
     let serachCount = 0;
-    let searchIndex = 0;
-    let reg = caseSensitive.value ? new RegExp(logSearchText.value) : new RegExp(logSearchText.value, 'ig');
 
-    let map = new Map();
-    searchedMap.value.clear();
+    const prefixCounts: number[] = [];
     for (let log_index = 0; log_index < virtualLogs.value.length; log_index++) {
-        let count = (virtualLogs.value[log_index] as any).data.log.match(reg)?.length || 0; // 某条日志中匹配到的次数
-        if (count > 0) {
-            serachCount += count; // 累加匹配到的次数
-            for (let i = 0; i < count; i++) {
-                // 遍历匹配到的次数，建立总索引与某条日志匹配的子索引映射关系
-                map.set(searchIndex, `${log_index}-${i}`);
-                searchIndex++;
-            }
+        if (reg.global) {
+            reg.lastIndex = 0;
         }
+        let count = (virtualLogs.value[log_index] as any).data.log.match(reg)?.length || 0; // match count in a single log line
+        if (count > 0) {
+            serachCount += count; // accumulate match count
+        }
+        prefixCounts.push(serachCount);
     }
     searchedCount.value = serachCount;
-    searchedMap.value = map;
+    searchPrefixCounts.value = prefixCounts;
+    lastSearchBuildLength.value = virtualLogs.value.length;
     searchedIndex.value = 0;
+};
+
+const appendSearchIndexData = (startIndex: number) => {
+    const reg = searchRegExp.value;
+    if (!reg) {
+        return;
+    }
+    let total = searchPrefixCounts.value.length ? searchPrefixCounts.value[searchPrefixCounts.value.length - 1] : 0;
+    for (let log_index = startIndex; log_index < virtualLogs.value.length; log_index++) {
+        if (reg.global) {
+            reg.lastIndex = 0;
+        }
+        let count = (virtualLogs.value[log_index] as any).data.log.match(reg)?.length || 0;
+        total += count;
+        searchPrefixCounts.value.push(total);
+    }
+    searchedCount.value = total;
+    lastSearchBuildLength.value = virtualLogs.value.length;
 };
 
 watch(
     () => logSearchText.value + caseSensitive.value,
     () => {
-        delayDebounce(buildSearchIndexMap, 500);
+        delayDebounce(buildSearchIndexData, 500);
     }
 );
 
 watch(
-    () => props.logs,
-    (newLogs: Array<any>) => {
-        setVirtualLogs(newLogs);
-    },
-    { deep: 1 }
+    () => props.logs.length,
+    () => {
+        setVirtualLogs(props.logs as Array<any>);
+        if (logSearchVisible.value && searchRegExp.value) {
+            if (lastSearchBuildLength.value == 0) {
+                buildSearchIndexData();
+            } else if (props.logs.length > lastSearchBuildLength.value) {
+                appendSearchIndexData(lastSearchBuildLength.value);
+            }
+        }
+    }
 );
 
 onMounted(() => {
@@ -208,10 +277,10 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-    searchedMap.value.clear();
-    searchedMap.value = new Map();
     virtualLogs.value.length = 0;
     virtualScrollerRef.value = null;
+    searchPrefixCounts.value = [];
+    lastSearchBuildLength.value = 0;
 });
 </script>
 
@@ -233,9 +302,9 @@ onBeforeUnmount(() => {
                         <div class="w-full p-2 text-surface-500 dark:text-surface-400">
                             <span class="log-loading">
                                 <span class="loading-dots flex gap-1">
-                                    <span class="dot">•</span>
-                                    <span class="dot">•</span>
-                                    <span class="dot">•</span>
+                                    <span class="dot">.</span>
+                                    <span class="dot">.</span>
+                                    <span class="dot">.</span>
                                 </span>
                             </span>
                         </div>
@@ -315,6 +384,8 @@ onBeforeUnmount(() => {
 :deep(.log-loading .loading-dots .dot) {
     animation: blink 0.5s infinite both;
     margin-left: -1px;
+    margin-top: -4px;
+    font-weight: bold;
 }
 
 :deep(.log-loading .loading-dots .dot:first-child) {

@@ -48,6 +48,7 @@ let running_status = 4;
 let completed_status = 6;
 const currentTrainingRun = ref<any>();
 const curTrainingRunLogs = ref<any>([]);
+let logIdSet = new Set<string>();
 
 // 当前的Tab组件值
 const tabValue = ref('0'); // 超参数设置=0 训练日志=1 数据图表=2 结果模型=3
@@ -77,6 +78,7 @@ const getTrainingRunLog = async () => {
     // 未到运行状态直接返无日志，不需要发请求获取
     if (currentTrainingRun.value.status < running_status) {
         curTrainingRunLogs.value = [];
+        logIdSet = new Set();
         return;
     }
 
@@ -94,9 +96,15 @@ const getTrainingRunLog = async () => {
             return;
         }
         let logs = parseJSON(res.data.log_content);
-        let logSet = new Set(logs.map((item: any) => item.msg_id));
-        let curFilterLogs = curTrainingRunLogs.value.filter((item: any) => !logSet.has(item.msg_id)); //通过Set而不是数组比对提高查询效率
-        curTrainingRunLogs.value = [...logs, ...curFilterLogs];
+        logIdSet = new Set(logs.map((item: any) => item.msg_id));
+        const mergedLogs = [...logs];
+        for (const item of curTrainingRunLogs.value) {
+            if (!logIdSet.has(item.msg_id)) {
+                mergedLogs.push(item);
+                logIdSet.add(item.msg_id);
+            }
+        }
+        curTrainingRunLogs.value = mergedLogs;
     }
 };
 
@@ -205,6 +213,7 @@ const switchTrainingRun = (item: any) => {
     forceScrollLogToBottom.value = true;
     currentTrainingRun.value = item;
     curTrainingRunLogs.value = [];
+    logIdSet = new Set();
     logSearch(false);
     getTrainingRunLog();
 };
@@ -257,6 +266,7 @@ const deleteTrainingRun = async (item: any, e: any) => {
                     } else {
                         currentTrainingRun.value = undefined;
                         curTrainingRunLogs.value = [];
+                        logIdSet = new Set();
                     }
                 }
                 trainingRunList.value = trainingRunList.value.filter((i: any) => i.id != item.id);
@@ -526,12 +536,12 @@ const sseInit = () => {
                 let task_id = data.task_id;
                 let run_id = data.run_id;
                 if (currentTask.value.id == task_id && currentTrainingRun.value.id == run_id) {
-                    let logSet = new Set(curTrainingRunLogs.value.map((item: any) => item.msg_id));
                     let recv_log = { msg_id: message.msg_id, data: data };
-                    if (logSet.has(recv_log.msg_id)) {
-                        // http途径获取的日志 和 sse途径获取的日志重复，忽略掉
+                    if (logIdSet.has(recv_log.msg_id)) {
+                        // http????????????????????????sse???????????????????????????????????????
                         return;
                     }
+                    logIdSet.add(recv_log.msg_id);
                     // curTrainingRunLogs.value = [...curTrainingRunLogs.value, recv_log];
                     curTrainingRunLogs.value.push(recv_log);
                 }

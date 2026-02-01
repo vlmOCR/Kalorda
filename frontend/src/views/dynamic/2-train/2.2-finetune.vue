@@ -114,20 +114,29 @@ const gotoTrainingRun = async (task: any, event: any) => {
 
 // 合并数据
 const combineData = async (task: any) => {
-    // 前端界面上先设为合并中
-    task.data_combine_status = 2; // 合并中
+    const previousStatus = task.data_combine_status;
+    task.data_combine_status = 2;
 
     showLoading();
     let [err, res] = await promise2(FinetuneService.combineFinetuneData(task.id));
     hideLoading();
-    if (err) {
+    if (err || !res) {
+        task.data_combine_status = previousStatus;
         return;
     }
-    if (res && res.code == 2000) {
-        showToast('success', t('page.common.success'), t('page.finetune.combine_success'), true);
+    if (res.code == 2000) {
+        if (res.data?.status == 'combining') {
+            showToast('info', t('page.common.success'), res.message, true);
+            return;
+        }
+        showToast('success', t('page.common.success'), res.message || t('page.finetune.combine_success'), true);
         searchFinetuneTasks(false);
+        return;
     }
+    task.data_combine_status = previousStatus;
+    showToast('error', t('page.common.error'), res.message || t('page.common.error'), true);
 };
+
 
 // 更多操作菜单
 const moreMenu = ref<any>();

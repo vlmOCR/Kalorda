@@ -146,38 +146,64 @@ def combine_data(
         )
         if not task:
             return error_response(_("微调任务不存在或无权限访问"))
-        # 刷新合并数据
-        combine_finetune_task_data(task_id, only_combine_count=False)
-        return success_response({"message": _("合并数据成功")})
+        # Combine data
+        combine_result = combine_finetune_task_data(task_id, only_combine_count=False)
+        status = combine_result.get("status")
+        if combine_result.get("ok"):
+            if status == "combining":
+                return success_response(
+                    {"status": status, "data_combine_status": CombineDataStatus.combining["value"]},
+                    message=_("正在合并中，请稍后刷新查看结果"),
+                )
+            return success_response(
+                {"status": status, "data_combine_status": CombineDataStatus.combined["value"]},
+                message=_("合并数据成功"),
+            )
+        return error_response(_("刷新合并微调数据失败，请稍后重试"))
     except Exception as e:
         logger.error(f"刷新合并微调数据失败: {str(e)}", exc_info=True)
         return error_response(_("刷新合并微调数据失败，请稍后重试"))
 
 
-# 合并微调任务数据
-def combine_finetune_task_data(task_id: int, only_combine_count: bool = True) -> bool:
+def combine_finetune_task_data(task_id: int, only_combine_count: bool = True) -> dict:
     """
-    合并微调任务数据
+    Combine finetune task data.
     """
-    # 确保数据库连接已打开
+    # Ensure the DB connection is open
     db_manager.get_connection()
 
-    # 获取任务实例
+    # Fetch task instance
     task = FineTuneTaskDB.select_active().where(FineTuneTaskDB.id == task_id).first()
     if not task or not task.datasets:
-        return False
+        return {"ok": False, "status": "missing"}
 
     if not only_combine_count:
-        # 如果正在合并数据，则还是只统计数据量
-        if task.data_combine_status == CombineDataStatus.combining["value"]:
+        # Try to acquire combine status to avoid duplicate work
+        updated_rows = (
+            FineTuneTaskDB.update(data_combine_status=CombineDataStatus.combining["value"])
+            .where(
+                FineTuneTaskDB.id == task.id,
+                FineTuneTaskDB.data_combine_status != CombineDataStatus.combining["value"],
+            )
+            .execute()
+        )
+        if updated_rows == 0:
+            # Already combining, just refresh counts
             only_count_sft_data(task)
-        else:
-            # 合并数据（自带统计数据量）
+            return {"ok": True, "status": "combining"}
+
+        task.data_combine_status = CombineDataStatus.combining["value"]
+        task.save()
+        # Combine data (includes counts)
+        try:
             combine_sft_data(task)
-    else:
-        # 只统计数据量
-        only_count_sft_data(task)
-    return True
+        except Exception:
+            return {"ok": False, "status": "failed"}
+        return {"ok": True, "status": "combined"}
+
+    # Count only
+    only_count_sft_data(task)
+    return {"ok": True, "status": "counted"}
 
 
 def only_count_sft_data(task: int):
@@ -200,26 +226,18 @@ def only_count_sft_data(task: int):
 
 def combine_sft_data(task: FineTuneTaskDB):
     """
-    合并微调任务数据
+    Combine finetune task data.
     """
-    # 先标记为合并中
-    FineTuneTaskDB.update(data_combine_status=CombineDataStatus.combining["value"]).where(
-        FineTuneTaskDB.id == task.id
-    ).execute()
-
-    task.data_combine_status = CombineDataStatus.combining["value"]
-    task.save()
-
     __, task_data_dir = get_finetune_task_directory(task.id)
 
     train_data_path = task_data_dir + f"/train_{uuid.uuid4()}.jsonl"
     val_data_path = task_data_dir + f"/val_{uuid.uuid4()}.jsonl"
 
-    # 写入SFT数据文件
+    # Write SFT data files
     try:
         train_data_count, val_data_count = write_sft_data_file(task, train_data_path, val_data_path)
 
-        # 旧文件
+        # Old files
         old_train_data_path = task.train_data_path
         old_val_data_path = task.val_data_path
 
@@ -231,35 +249,38 @@ def combine_sft_data(task: FineTuneTaskDB):
         task.data_combine_status = CombineDataStatus.combined["value"]
         task.save()
         try:
-            # 删除旧数据文件
+            # Delete old data files
             if old_train_data_path and os.path.exists(old_train_data_path):
                 os.remove(old_train_data_path)
             if old_val_data_path and os.path.exists(old_val_data_path):
                 os.remove(old_val_data_path)
         except Exception as e:
-            logger.error(f"删除旧数据文件失败: task_id={task.id}, {str(e)}", exc_info=True)
-        logger.info(f"合并微调任务数据成功: task_id={task.id}")
+            logger.error(f"Failed to delete old data files: task_id={task.id}, {str(e)}", exc_info=True)
+        logger.info(f"Combine finetune data succeeded: task_id={task.id}")
     except Exception as e:
-        logger.error(f"合并微调任务数据失败: task_id={task.id}, {str(e)}", exc_info=True)
+        logger.error(f"Combine finetune data failed: task_id={task.id}, {str(e)}", exc_info=True)
         FineTuneTaskDB.update(data_combine_status=CombineDataStatus.not_combined["value"]).where(
             FineTuneTaskDB.id == task.id
         ).execute()
+        task.data_combine_status = CombineDataStatus.not_combined["value"]
+        task.save()
+        raise
 
 
 def write_sft_data_file(task: FineTuneTaskDB, train_data_file_path: str, val_data_file_path: str):
     """
-    写入SFT数据文件
+    Write SFT data files.
     """
     import kalorda.core.sft_data_prompt as sft_data_prompt
 
-    # 获取模型训练的prompt
+    # Get prompt for training model
     matched_model = OcrModel.get_all_models()[task.target_model - 1]
     sft_prompt = sft_data_prompt.get_sft_prompt(matched_model.get("code"))
 
-    train_data_json_list = []
-    val_data_json_list = []
+    train_data_written = False
+    val_data_written = False
 
-    # 获取任务关联的数据集ID
+    # Get dataset IDs for the task
     dataset_ids = []
     dataset_throughs = FineTuneTaskDatasetThrough.select().where(FineTuneTaskDatasetThrough.finetune_task == task.id)
     for through in dataset_throughs:
@@ -281,7 +302,7 @@ def write_sft_data_file(task: FineTuneTaskDB, train_data_file_path: str, val_dat
         .where(DatasetImageDB.dataset_id.in_(dataset_ids) & (DatasetImageDB.train_data_type > 0))
     )
 
-    # 若文件存在则先删除
+    # Remove files if they already exist
     if os.path.exists(train_data_file_path):
         os.remove(train_data_file_path)
     if os.path.exists(val_data_file_path):
@@ -296,6 +317,8 @@ def write_sft_data_file(task: FineTuneTaskDB, train_data_file_path: str, val_dat
     page = 1
     page_size = 100
     while True:
+        train_data_json_list = []
+        val_data_json_list = []
         images = query.paginate(page, page_size)
         if not images or len(images) == 0:
             break
@@ -303,7 +326,7 @@ def write_sft_data_file(task: FineTuneTaskDB, train_data_file_path: str, val_dat
         for image in images:
             if image.file_path.startswith("./"):
                 image.file_path = image.file_path[1:]
-            # 图片相对路径转换为绝对路径
+            # Convert relative path to absolute
             image.file_path = config.BASE_DIR + image.file_path
 
             data_json = data_builder.to_json(
@@ -311,20 +334,31 @@ def write_sft_data_file(task: FineTuneTaskDB, train_data_file_path: str, val_dat
                 sft_prompt,
                 convert_ocr_label(image, matched_model),
             )
-            if image.train_data_type == 1:  # 训练数据
+            if image.train_data_type == 1:  # train data
                 train_data_json_list.append(data_json)
                 train_data_count += 1
-            elif image.train_data_type == 2:  # 验证数据
+            elif image.train_data_type == 2:  # validation data
                 val_data_json_list.append(data_json)
                 val_data_count += 1
 
-        # 批量写入文件，一次最多写入100条数据
-        append_write_file(train_data_file_path, ",\n".join(train_data_json_list))
-        append_write_file(val_data_file_path, ",\n".join(val_data_json_list))
+        # Write page chunk once per page to avoid duplicates
+        train_chunk = ",\n".join(train_data_json_list)
+        if train_chunk:
+            if train_data_written:
+                train_chunk = ",\n" + train_chunk
+            append_write_file(train_data_file_path, train_chunk)
+            train_data_written = True
+
+        val_chunk = ",\n".join(val_data_json_list)
+        if val_chunk:
+            if val_data_written:
+                val_chunk = ",\n" + val_chunk
+            append_write_file(val_data_file_path, val_chunk)
+            val_data_written = True
 
     append_write_file(train_data_file_path, "]")
     append_write_file(val_data_file_path, "]")
-    # 返回准确的训练、验证总数据量
+    # Return accurate train/val counts
     return train_data_count, val_data_count
 
 
