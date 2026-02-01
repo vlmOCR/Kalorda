@@ -8,7 +8,7 @@
 <a href="https://github.com/vllm-project/vllm" target="_blank"><img src="https://img.shields.io/badge/vLLM-blue"></a>
 <a href="https://vuejs.org/"><img src="https://img.shields.io/badge/Vue3+Vite-red"></a> 
 <a href="https://github.com/vlmOCR/Kalorda"><img src="https://img.shields.io/badge/github-repo-blue?logo=github"></a>
-<a href="https://pypi.org/project/kalorda"><img src="https://img.shields.io/badge/pypi-v0.1.5-orange"></a>
+<a href="https://pypi.org/project/kalorda"><img src="https://img.shields.io/badge/pypi-v0.1.6-orange"></a>
 <a href="https://kalorda.vlmocr.com"><img src="https://img.shields.io/badge/Website-online-yellow"></a> 
 </p>
 
@@ -45,6 +45,10 @@ kalorda --port 8800
 - `--workers`：指定工作进程数（至少要2个工作进程），默认值为 `2`
 - `--log-level`：指定日志级别，默认值为 `info`
 
+### 4、登录账号
+```
+初始管理员账号Admin密码admin123
+```
 
 ### 系统和硬件条件：
 - Linux操作系统（Windows下请安装wsl2 ubuntu子系统）

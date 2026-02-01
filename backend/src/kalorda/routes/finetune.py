@@ -329,10 +329,14 @@ def write_sft_data_file(task: FineTuneTaskDB, train_data_file_path: str, val_dat
             # Convert relative path to absolute
             image.file_path = config.BASE_DIR + image.file_path
 
+            content = convert_ocr_label(image, matched_model)
+            if content is None:
+                continue
+
             data_json = data_builder.to_json(
                 image.file_path,
                 sft_prompt,
-                convert_ocr_label(image, matched_model),
+                content,
             )
             if image.train_data_type == 1:  # train data
                 train_data_json_list.append(data_json)
@@ -386,6 +390,15 @@ def html_format(html: str):
 
 
 def convert_ocr_label(image: DatasetImageDB, ocr_model: OcrModel):
+    try:
+        content = _convert_ocr_label(image=image, ocr_model=ocr_model)
+    except Exception as e:
+        logger.error(f'标注内容有误：{image}, e={e}')
+        content = image.ocr_label
+    return content
+
+
+def _convert_ocr_label(image: DatasetImageDB, ocr_model: OcrModel):
     """
     转换标注内容为模型的自己原来的数据格式：因为经过前端标注后的结果都统一按dotsOCR的格式（作为标准格式）保存到后端的，
     而模型训练时需要的各家模型的格式不同的，所以需要转换回去。
@@ -393,7 +406,7 @@ def convert_ocr_label(image: DatasetImageDB, ocr_model: OcrModel):
     ocr_label_json_str = image.ocr_label
 
     if ocr_label_json_str is None or len(ocr_label_json_str.strip()) == 0:
-        return ""
+        return ocr_label_json_str
 
     # ocr_label_json_str 格式：
     # [{"bbox": [x1, y1, x2, y2], "category": "Title", "text": "文本内容"}]

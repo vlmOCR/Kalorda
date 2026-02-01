@@ -1,4 +1,4 @@
-_VERSION = "0.1.5"
+_VERSION = "0.1.6"
 _NAME = "kalorda"
 _DESCRIPTION = "integrated fine-tuning platform for lightweight vlmOCR models"
 
