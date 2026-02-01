@@ -567,6 +567,60 @@ class TestOCRResultDB(BaseDBModel):
         )
 
 
+def _ensure_training_run_columns_patch():
+    # Temporary startup patch: add logging_steps/eval_steps if missing.
+    try:
+        db_manager.get_connection()
+        table_name = TrainingRunDB._meta.table_name
+        if not database.table_exists(table_name):
+            return
+
+        if config.DB_TYPE == "mysql":
+            columns = set()
+            cursor = database.execute_sql(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s",
+                (config.DB_NAME, table_name),
+            )
+            for row in cursor.fetchall():
+                columns.add(row[0])
+
+            if "logging_steps" not in columns:
+                database.execute_sql(
+                    f"ALTER TABLE {table_name} ADD COLUMN logging_steps INT NOT NULL DEFAULT 1"
+                )
+                logger.info("Added column logging_steps to training_runs")
+            if "eval_steps" not in columns:
+                database.execute_sql(
+                    f"ALTER TABLE {table_name} ADD COLUMN eval_steps INT NOT NULL DEFAULT 1"
+                )
+                logger.info("Added column eval_steps to training_runs")
+        else:
+            columns = set()
+            cursor = database.execute_sql(f"PRAGMA table_info('{table_name}')")
+            for row in cursor.fetchall():
+                columns.add(row[1])
+
+            if "logging_steps" not in columns:
+                database.execute_sql(
+                    f"ALTER TABLE {table_name} ADD COLUMN logging_steps INTEGER DEFAULT 1"
+                )
+                database.execute_sql(
+                    f"UPDATE {table_name} SET logging_steps = 1 WHERE logging_steps IS NULL"
+                )
+                logger.info("Added column logging_steps to training_runs")
+            if "eval_steps" not in columns:
+                database.execute_sql(
+                    f"ALTER TABLE {table_name} ADD COLUMN eval_steps INTEGER DEFAULT 1"
+                )
+                database.execute_sql(
+                    f"UPDATE {table_name} SET eval_steps = 1 WHERE eval_steps IS NULL"
+                )
+                logger.info("Added column eval_steps to training_runs")
+    except Exception as e:
+        logger.error(f"Failed to ensure training_runs columns: {str(e)}", exc_info=True)
+        raise
+
+
 lock = Lock()
 
 
@@ -604,6 +658,7 @@ def init_database():
                 if not database.table_exists(model._meta.table_name):
                     database.create_tables([model])
                     logger.info(f"创建表: {model._meta.table_name}")
+            _ensure_training_run_columns_patch()
 
             # 然后添加默认数据
             # 检查并创建默认管理员用户
