@@ -2,7 +2,7 @@
 <img src="https://raw.githubusercontent.com/vlmOCR/Kalorda/refs/heads/main/frontend/public/logo.png" alt="Kalorda" align="center" style="margin: 20px 20px -20px 0;">
 </p>
 <h1 align="center" style="font-size: 60px;"><b>Kalorda</b></h1>
-<p align="center" style="font-size: 25px;"><b>轻量vlmOCR模型一站式微调平台</b></p>
+<p align="center" style="font-size: 25px;"><b>An integrated fine-tuning platform for lightweight vlmOCR models</b></p>
 <p align="center">
 <a href="https://github.com/modelscope/ms-swift" target="_blank"><img src="https://img.shields.io/badge/modelscope-ms--swift-red"></a>
 <a href="https://github.com/vllm-project/vllm" target="_blank"><img src="https://img.shields.io/badge/vLLM-blue"></a>
@@ -10,169 +10,185 @@
 <a href="https://github.com/vlmOCR/Kalorda"><img src="https://img.shields.io/badge/github-repo-blue?logo=github"></a>
 <a href="https://pypi.org/project/kalorda"><img src="https://img.shields.io/badge/pypi-v0.1.6-orange"></a>
 <a href="https://kalorda.vlmocr.com"><img src="https://img.shields.io/badge/Website-online-yellow"></a> 
+<br/>
+<a href="README.md">English</a>&nbsp;&nbsp;<a href="README_CN.md">中文</a>
 </p>
 
-🔥 好消息：Kalorda现已支持Deepseek-OCR-2模型微调训练，特别支持v0.13/0.14/0.15等高版本vLLM对Deepseek-OCR-2的运行推理（全网首发）
+🔥 News: Kalorda now supports fine-tuning for Deepseek-OCR-2, and specifically supports higher vLLM versions (v0.13/0.14/0.15) for running inference with Deepseek-OCR-2 (first release online).
 
 <img src="frontend/public/screenshot.png" width="100%" title="screenshot"/>
 
-## 概述
-Kalorda是一个轻量vlmOCR模型微调集成平台，前端采用Typescript+Vue3+Vite，后端采用Python+FastAPI+ms-swift+vLLM构建，提供针对主流轻量vlmOCR模型的数据二次标注、微调训练、对比测试等一站式综合解决方案。
+## Overview
+Kalorda is a lightweight VLM OCR fine-tuning platform. The frontend is built with TypeScript + Vue3 + Vite, and the backend is built with Python + FastAPI + ms-swift + vLLM. It provides a one-stop solution for data relabeling, fine-tuning, and evaluation for mainstream lightweight VLM OCR models.
 
-当前vlmOCR模型蓬勃发展，不同模型都有各自的优势但也有不足，实际应用时需要对模型进行二次微调以提升在特定业务场景下的识别能力。虽然在数据标注、微调训练、模型推理等各环节已有很多优秀开源组件可供选择和使用，但还是缺少可针对不同ocr模型微调、能将各环节流程串起来的一体协同工具，非熟练专业人员想开展微调工作（哪怕只是调工具）其实并不方便也不容易。Kalorda通过对ms-swift+vllm等主流工具的封装并对主流ocr模型深度集成，提供直观友好的可视化WEB操作界面，能够让vlmOCR模型的微调门槛降低，操作使用更加简单方便。
+VLM OCR models are evolving rapidly. Different models have their own strengths and limitations, so real-world applications often need secondary fine-tuning to improve recognition performance in specific business scenarios. Although there are many open-source components available for data labeling, fine-tuning, and inference, there is still a lack of an integrated tool that links the entire workflow together. This makes fine-tuning work (even if it is just tool orchestration) inconvenient and challenging for non-experts. Kalorda wraps mainstream tools like ms-swift + vLLM and deeply integrates mainstream OCR models, providing an intuitive web UI that lowers the barrier to VLM OCR fine-tuning and makes operations simpler and more convenient.
 
-当前已支持的vlmOCR模型：
+Currently supported VLM OCR models:
 
-| 模型名称 | 模型大小 | 发布日期 | 发布厂家|
+| Model Name | Model Size | Release Date | Publisher |
 | ----------- | ----------- | ----------- | ----------- |
-| GOT-OCR2.0 | 0.6B     | 2025年5月 | 阶跃星辰 |
-| dotsOCR    | 3B       | 2025年7月 | 小红书 |
-| Dolphin_v2 | 3B       | 2025年11月 | 字节跳动 |
-| Deepseek_OCR | 3B     | 2025年11月 | 深度求索 |
-| PaddleOCR_VL | 0.9B   | 2025年11月 | 百度 |
-| HunyuanOCR   | 1B     | 2025年12月 | 腾讯 |
-| Deepseek_OCR2 | 3B     | 2026年1月 | 深度求索 |
+| GOT-OCR2.0 | 0.6B     | 2025 | StepFun |
+| dotsOCR    | 3B       | 2025 | Xiaohongshu |
+| Dolphin_v2 | 3B       | Jan 2025 | ByteDance |
+| Deepseek_OCR | 3B     | Jan 2025 | DeepSeek |
+| PaddleOCR_VL | 0.9B   | Jan 2025 | Baidu |
+| HunyuanOCR   | 1B     | Feb 2025 | Tencent |
+| Deepseek_OCR2 | 3B     | 2026 | DeepSeek |
 
-更多模型会持续集成，欢迎大家提交PR或issue一起完善。
+More models will be integrated. PRs and issues are welcome.
 
-## 安装
+## Installation
 
-### 快速安装
-Kalorda安装包已发布至 [PyPI](https://pypi.org/) 中央仓库，不用下载 git 源码，直接使用 pip 安装即可使用。
-### 1、新建虚拟环境
+### Quick Install
+Kalorda packages are published on [PyPI](https://pypi.org/). You can install directly with pip without cloning the git source code.
 
-```
-# 使用 conda 新建虚拟环境
+### 1. Create a virtual environment
+
+```bash
+# Create a virtual environment using conda
 conda create -n kalorda python=3.12 -y
 
-# 激活（切换）虚拟环境
+# Activate the virtual environment
 conda activate kalorda
 ```
-### 2、安装命令
-```
+
+### 2. Install
+```bash
 pip install kalorda
 
-# 或指定阿里云镜像源进行安装
+# Or install with an Aliyun mirror
 pip install kalorda -i https://mirrors.aliyun.com/pypi/simple/
 ```
 
-### 3、启动命令
+### 3. Start
 
-```
+```bash
 kalorda --port 8800
 ```
-可选启动参数：
-- `--host`：指定主机地址，默认值为 `0.0.0.0`
-- `--port`：指定端口号，默认值为 `8800`
-- `--gpu-devices`：指定允许使用的GPU设备索引（从0开始），默认值为空表示不限制（即全部GPU都可使用），多个GPU用逗号分隔，例如 `--gpu-devices 0,1,2`
-- `--workers`：指定工作进程数（至少要2个工作进程），默认值为 `2`
-- `--log-level`：指定日志级别，默认值为 `info`
 
-### 4、登录账号
-```
-初始管理员账号Admin密码admin123
+Optional startup parameters:
+- `--host`: specify host address, default is `0.0.0.0`
+- `--port`: specify port, default is `8800`
+- `--gpu-devices`: specify GPU device indices (starting from 0). Default is empty, meaning all GPUs are allowed. Multiple GPUs are separated by commas, e.g. `--gpu-devices 0,1,2`
+- `--workers`: specify worker process count (at least 2). Default is `2`
+- `--log-level`: specify log level, default is `info`
+
+### 4. Login
+```text
+Default admin account: admin
+Default password: admin123
 ```
 
-### 系统和硬件条件：
-- Linux操作系统（Windows下请安装wsl2 ubuntu子系统）
-- Python虚拟环境管理工具（推荐使用miniconda3或uv）
-- 至少一张Nvidia GPU显卡，显存16G或以上，已安装显卡驱动及CUDA（非Nvidia显卡当前暂不支持，等后续）
-- 硬盘空间：50GB或以上
+### System and hardware requirements
+- Linux OS (on Windows, please install WSL2 Ubuntu)
+- Python virtual environment manager (Miniconda3 or uv recommended)
+- At least one Nvidia GPU, 6GB VRAM or above; GPU driver and CUDA installed (non-Nvidia GPUs are not supported currently)
+- Disk space: ?0GB or more
 
-### 源码安装
-如果您想使用前后端分离的方式安装或调试项目，可按照以下步骤操作：
-### 1、下载源码
-```
+### Source Installation
+If you want to install or debug the project with frontend and backend separated, follow the steps below:
+
+### 1. Clone source
+```bash
 git clone https://github.com/vlmOCR/Kalorda.git
 ```
-### 2、安装运行
-本项目分为前端和后端两个部分，分别位于项目根目录下的frontend/和backend/目录。
-```
+
+### 2. Install and run
+This project contains two parts, located under the project root: `frontend/` and `backend/`.
+
+```text
 Kalorda
-├── backend/     # 后端项目目录
-├── frontend/    # 前端项目目录
-├── LICENSE      # 项目许可证（Apache-2.0）
-└── README.md    # github首页
+├── backend/     # backend project
+├── frontend/    # frontend project
+├── LICENSE      # project license (Apache-2.0)
+└── README.md    # github homepage
 ```
-安装后端项目并启动（因依赖的vLLM组件不支持纯windows系统，后端项目必须在linux或windows/wsl2子系统运行）
-```
-# 进入后端项目目录（具体路径请根据实际修改）
+
+Install and run the backend (vLLM does not support pure Windows; the backend must run on Linux or Windows/WSL2):
+
+```bash
+# Enter the backend directory (adjust path to your actual environment)
 cd /mnt/d/test/Kalorda/backend/
 
-# 使用 conda 新建虚拟环境
+# Create a virtual environment using conda
 conda create -n kalorda python=3.12 -y
 
-# 激活（切换）虚拟环境
+# Activate the virtual environment
 conda activate kalorda
 
-# 安装依赖
+# Install dependencies
 pip install -e .[dev]
 
-# 启动运行（进入src/kalorda目录）
+# Start (enter src/kalorda directory)
 cd /mnt/d/test/Kalorda/backend/src/kalorda/
 python -m main --port 8800
 ```
 
-安装前端项目并启动（操作系统不限，但须要有Node.js环境）
+Install and run the frontend (requires Node.js, OS不限):
 
-```
-# 进入前端项目目录（具体路径请根据实际修改）
+```bash
+# Enter the frontend directory (adjust path to your actual environment)
 cd d:/test/Kalorda/frontend/
 
-# 安装依赖
+# Install dependencies
 npm install
 
-# 打开前端项目目录下的 .env.dev 配置文件，修改 VITE_API_SERVER_URL 值为已启动的kalorda后端地址
-# 例如：VITE_API_SERVER_URL=http://172.18.35.246:8800 （注意：ip地址要根据实际后端运行地址进行修改）
+# Open the .env.dev file in the frontend directory and set VITE_API_SERVER_URL
+# to the running kalorda backend URL.
+# Example: VITE_API_SERVER_URL=http://172.18.35.246:8800
+# Note: update the IP address to match your backend address.
 
-# 启动运行
+# Start
 npm run dev
 
-# 访问前端页面（前端默认端口为8060，可在 vite.config.ts 文件中修改 server.port 值）
-# 打开浏览器，访问 http://localhost:8060 
+# Open the frontend page (default port is 8060; you can change server.port in vite.config.ts)
+# Open your browser and visit http://localhost:8060
 ```
 
-
-## 项目打包
-先执行前端打包
-```
-# 进入前端项目目录（具体路径请根据实际修改）
+## Build
+Build the frontend first:
+```bash
+# Enter the frontend directory (adjust path to your actual environment)
 cd d:/test/Kalorda/frontend/
 
-# 执行前端打包命令
+# Run frontend build
 npm run build
 ```
-打包后的静态资源文件默认会保存到/backend/src/kalorda/web_dist目录（便于接下来后端打包时包含静态资源文件）
 
-再执行后端打包
-```
-# 进入后端项目目录（具体路径请根据实际修改）
+Built static assets will be saved under `backend/src/kalorda/web_dist` by default,
+so the backend build can include them.
+
+Then build the backend:
+```bash
+# Enter the backend directory (adjust path to your actual environment)
 cd /mnt/d/test/Kalorda/backend/
 
-# 安装打包工具build
+# Install build tool
 pip install build
 
-# 执行打包命令
+# Run build
 python -m build
 ```
-打包后的whl文件默认保存在/backend/dist目录下,
-例如：kalorda-0.1.6-py3-none-any.whl 安装whl文件命令为
-```
+
+Built wheel files are saved under `backend/dist` by default.
+Example install command:
+```bash
 pip install kalorda-0.1.6-py3-none-any.whl
 ```
-## 💡联系交流
-邮箱：[postmaster@vlmocr.com](mailto:postmaster@vlmocr.com)
 
-GitHub/Issues：[https://github.com/vlmOCR/Kalorda/issues](https://github.com/vlmOCR/Kalorda/issues)
+## Contact
+Email: [postmaster@vlmocr.com](mailto:postmaster@vlmocr.com)
 
-微信：llery2021
+GitHub Issues: [https://github.com/vlmOCR/Kalorda/issues](https://github.com/vlmOCR/Kalorda/issues)
 
-<img src="https://raw.githubusercontent.com/vlmOCR/Kalorda/refs/heads/main/frontend/public/wx.png" width="230px" title="微信" />
+WeChat: lery2021
 
-(扫码添加微信，备注：kalorda，邀您加入群聊)
+<img src="https://raw.githubusercontent.com/vlmOCR/Kalorda/refs/heads/main/frontend/public/wx.png" width="230px" title="WeChat" />
 
-## 📜License
-Kalorda项目基于Apache-2.0协议开源，您可以在遵守协议的前提下自由使用、修改和分发本项目。
+(Scan to add WeChat, note: kalorda, and you will be added to the group.)
+
+## License
+Kalorda is open-sourced under the Apache-2.0 license. You are free to use, modify, and distribute this project as long as you comply with the license.
 
 [Apache-2.0](LICENSE)
 
