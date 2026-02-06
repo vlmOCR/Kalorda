@@ -1,9 +1,14 @@
 // 获取dom节点的innerText 并对{和}符号进行转义
 export function getInnerText(domNode: any) {
-    if (!domNode && !domNode.innerText) {
+    if (!domNode) {
         return '';
     }
-    const innerText = domNode.innerText.replace(/[{}]/g, (match: any) => `\\${match}`);
+    // Prefer textContent to avoid whitespace normalization that can convert full-width spaces.
+    const rawText = (domNode.textContent ?? domNode.innerText ?? '') as string;
+    if (rawText.length === 0) {
+        return '';
+    }
+    const innerText = rawText.replace(/[{}]/g, (match: any) => `\\${match}`);
     return innerText;
 }
 

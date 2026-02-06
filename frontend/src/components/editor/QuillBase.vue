@@ -158,7 +158,19 @@ export default {
                 this.quill.setText('');
                 // this.quill.root.innerHTML = "";
                 if (value) {
-                    const delta = this.quill.clipboard.convert({ html: value });
+                    // Preserve full-width spaces (U+3000) across Quill clipboard normalization.
+                    const placeholder = '\uE000'; // Private Use Area placeholder
+                    const valueWithPlaceholder = value.replace(/\u3000/g, placeholder);
+                    const delta = this.quill.clipboard.convert({ html: valueWithPlaceholder });
+                    if (delta?.ops && Array.isArray(delta.ops)) {
+                        delta.ops = delta.ops.map((op) => {
+                            if (typeof op.insert === 'string') {
+                                op.insert = op.insert.replace(new RegExp(placeholder, 'g'), '\u3000');
+                            }
+                            return op;
+                        });
+                    }
+                    // const delta = this.quill.clipboard.convert({ html: value });
                     this.quill.updateContents(delta);
                 }
             }
