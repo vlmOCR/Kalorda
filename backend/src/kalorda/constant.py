@@ -1,4 +1,3 @@
-from math import fabs
 from typing import List
 
 from kalorda.utils.i18n import _
@@ -700,6 +699,7 @@ class DeepseekOCRCategory:
             DeepseekOCRCategory.Footnote,
             DeepseekOCRCategory.Image,
         ]
+
 
 class DeepseekOCR2Category:
     Text = {

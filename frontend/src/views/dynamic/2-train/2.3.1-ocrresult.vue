@@ -1989,7 +1989,7 @@ const _getImageOcrLabelInfoList = async (image_index: number): Promise<LabelInfo
     // }
 
     // dotsOCR
-    if (currentModelInfo.value.model_type == 2) {
+    if (currentModelInfo.value.model_type == 2 || ocr_label.indexOf('bbox') >= 0) {
         ocr_label = ocr_label.substring(ocr_label.indexOf('[{'), ocr_label.lastIndexOf('}]') + 2);
         if (!ocr_label.startsWith('[{')) return [];
         if (!ocr_label.endsWith('}]')) return [];

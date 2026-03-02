@@ -1,10 +1,39 @@
 from PIL import Image
 from vllm import LLM, SamplingParams
 from vllm.lora.request import LoRARequest
-
 from kalorda.utils.logger import logger
-
 from .prompts import hunyuan_prompt
+import vllm
+
+
+def _patch_hunyuan_processor_for_vllm_016() -> None:
+
+    if vllm.__version__ < "0.16.0":
+        return
+
+    """
+    vLLM 0.16 passes `add_special_tokens` via tokenization kwargs, while
+    HunYuanVLProcessor.__call__ already sets add_special_tokens explicitly.
+    Remove the duplicated kwarg to avoid TypeError on Python call binding.
+    """
+    try:
+        from vllm.transformers_utils.processors.hunyuan_vl import HunYuanVLProcessor
+    except Exception as e:
+        logger.warning("Skip hunyuan processor patch: %s", e)
+        return
+
+    if getattr(HunYuanVLProcessor, "_kalorda_patched_add_special_tokens", False):
+        return
+
+    original_call = HunYuanVLProcessor.__call__
+
+    def _patched_call(self, *args, **kwargs):
+        kwargs.pop("add_special_tokens", None)
+        return original_call(self, *args, **kwargs)
+
+    HunYuanVLProcessor.__call__ = _patched_call
+    HunYuanVLProcessor._kalorda_patched_add_special_tokens = True
+    logger.info("Applied vLLM 0.16 hunyuan processor compatibility patch.")
 
 
 class HunyuanOCRInfer:
@@ -14,6 +43,8 @@ class HunyuanOCRInfer:
     gpu_memory_utilization = 0.8
 
     def __init__(self, model_weights_dir: str, lora_weights_dir: str = None):
+        _patch_hunyuan_processor_for_vllm_016()
+
         self.engine = LLM(
             model=model_weights_dir,
             trust_remote_code=True,
