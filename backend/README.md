@@ -8,7 +8,7 @@
 <a href="https://github.com/vllm-project/vllm" target="_blank"><img src="https://img.shields.io/badge/vLLM-blue"></a>
 <a href="https://vuejs.org/"><img src="https://img.shields.io/badge/Vue3+Vite-red"></a> 
 <a href="https://github.com/vlmOCR/Kalorda"><img src="https://img.shields.io/badge/github-repo-blue?logo=github"></a>
-<a href="https://pypi.org/project/kalorda"><img src="https://img.shields.io/badge/pypi-v0.1.6-orange"></a>
+<a href="https://pypi.org/project/kalorda"><img src="https://img.shields.io/badge/pypi-v0.1.7-orange"></a>
 <a href="https://kalorda.vlmocr.com"><img src="https://img.shields.io/badge/Website-online-yellow"></a> 
 </p>
 

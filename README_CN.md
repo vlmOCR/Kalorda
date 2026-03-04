@@ -8,7 +8,7 @@
 <a href="https://github.com/vllm-project/vllm" target="_blank"><img src="https://img.shields.io/badge/vLLM-blue"></a>
 <a href="https://vuejs.org/"><img src="https://img.shields.io/badge/Vue3+Vite-red"></a> 
 <a href="https://github.com/vlmOCR/Kalorda"><img src="https://img.shields.io/badge/github-repo-blue?logo=github"></a>
-<a href="https://pypi.org/project/kalorda"><img src="https://img.shields.io/badge/pypi-v0.1.6-orange"></a>
+<a href="https://pypi.org/project/kalorda"><img src="https://img.shields.io/badge/pypi-v0.1.7-orange"></a>
 <a href="https://kalorda.vlmocr.com"><img src="https://img.shields.io/badge/Website-online-yellow"></a>
 <br/>
 <a href="README_CN.md">中文</a>&nbsp;&nbsp;<a href="README.md">English</a>
@@ -161,9 +161,9 @@ pip install build
 python -m build
 ```
 打包后的whl文件默认保存在/backend/dist目录下,
-例如：kalorda-0.1.6-py3-none-any.whl 安装whl文件命令为
+例如：kalorda-0.1.7-py3-none-any.whl 安装whl文件命令为
 ```
-pip install kalorda-0.1.6-py3-none-any.whl
+pip install kalorda-0.1.7-py3-none-any.whl
 ```
 ## 💡联系交流
 邮箱：[postmaster@vlmocr.com](mailto:postmaster@vlmocr.com)

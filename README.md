@@ -8,7 +8,7 @@
 <a href="https://github.com/vllm-project/vllm" target="_blank"><img src="https://img.shields.io/badge/vLLM-blue"></a>
 <a href="https://vuejs.org/"><img src="https://img.shields.io/badge/Vue3+Vite-red"></a> 
 <a href="https://github.com/vlmOCR/Kalorda"><img src="https://img.shields.io/badge/github-repo-blue?logo=github"></a>
-<a href="https://pypi.org/project/kalorda"><img src="https://img.shields.io/badge/pypi-v0.1.6-orange"></a>
+<a href="https://pypi.org/project/kalorda"><img src="https://img.shields.io/badge/pypi-v0.1.7-orange"></a>
 <a href="https://kalorda.vlmocr.com"><img src="https://img.shields.io/badge/Website-online-yellow"></a> 
 <br/>
 <a href="README.md">English</a>&nbsp;&nbsp;<a href="README_CN.md">中文</a>
@@ -176,7 +176,7 @@ python -m build
 Built wheel files are saved under `backend/dist` by default.
 Example install command:
 ```bash
-pip install kalorda-0.1.6-py3-none-any.whl
+pip install kalorda-0.1.7-py3-none-any.whl
 ```
 
 ## Contact
