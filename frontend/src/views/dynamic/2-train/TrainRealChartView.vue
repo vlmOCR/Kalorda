@@ -216,7 +216,7 @@ const rebuildFromLogs = (logs: Array<any>) => {
                 token_acc: data['token_acc'],
                 epoch: data['epoch'],
                 global_step: global_step,
-                train_speed: data['train_speed(iter/s)']
+                train_speed: data['train_speed(iter/s)'] || data['train_speed(s/it)']
             };
             trainEpochsRaw.push(train_epoch);
             trainLossSeriesRaw.push(train_epoch.loss);
@@ -251,10 +251,10 @@ const rebuildFromLogs = (logs: Array<any>) => {
                 id: msg_id,
                 eval_loss: data['eval_loss'],
                 eval_token_acc: data['eval_token_acc'],
-                eval_train_speed: data['train_speed(iter/s)'],
+                eval_train_speed: data['train_speed(iter/s)'] || data['train_speed(s/it)'],
                 epoch: data['epoch'],
                 global_step: global_step,
-                train_speed: data['train_speed(iter/s)']
+                train_speed: data['train_speed(iter/s)'] || data['train_speed(s/it)']
             };
             if (!summary_obj.max_steps && max_steps > 0) {
                 summary_obj.max_steps = max_steps;
@@ -337,7 +337,7 @@ const _parseLogs = (logs: Array<any>) => {
                 token_acc: data['token_acc'],
                 epoch: data['epoch'],
                 global_step: global_step,
-                train_speed: data['train_speed(iter/s)']
+                train_speed: data['train_speed(iter/s)'] || data['train_speed(s/it)']
             };
             trainEpochsRaw.push(train_epoch);
             trainLossSeriesRaw.push(train_epoch.loss);
@@ -372,10 +372,10 @@ const _parseLogs = (logs: Array<any>) => {
                 id: msg_id,
                 eval_loss: data['eval_loss'],
                 eval_token_acc: data['eval_token_acc'],
-                eval_train_speed: data['train_speed(iter/s)'],
+                eval_train_speed: data['train_speed(iter/s)'] || data['train_speed(s/it)'],
                 epoch: data['epoch'],
                 global_step: global_step,
-                train_speed: data['train_speed(iter/s)']
+                train_speed: data['train_speed(iter/s)'] || data['train_speed(s/it)']
             };
             if (!summary_obj.max_steps && max_steps > 0) {
                 summary_obj.max_steps = max_steps;

@@ -250,6 +250,7 @@ async def finetune_with_ms_swift(training_run_id: int, gpu_device: str):
     if matched_model == OcrModel.dolphin:
         # dolphin模型需要显示指定模型类型为qwen2_5_vl否则ms-swift会报错
         command.append("--model_type qwen2_5_vl")
+        command.append("--template qwen2_5_vl")
 
     # 微调hunyuan_ocr模型的特殊处理(暂时transformers正式库尚未支持hunyuan_ocr模型使用临时库)
     if matched_model == OcrModel.hunyuan_ocr:
