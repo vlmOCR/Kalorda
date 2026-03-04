@@ -24,6 +24,7 @@ from kalorda.constant import (
     HunyuanOCRCategory,
     OcrModel,
     PaddleOCRVLCategory,
+    FireRedOCRCategory,
     PreOCRStatus,
 )
 
@@ -120,7 +121,7 @@ def create_dataset(
         # 检查系统管理员是否设置了该OCR权重目录
         model_type = (
             dataset_data.model_type
-        )  # 注：model_type是从1开始排序的不是从0开始 1= got_ocr 2= dotsocr 3= dolphin 4= deepseek_ocr 5= paddleocr_vl, 6= hunyuan_ocr, 7= deepseek_ocr2
+        )  # 注：model_type是从1开始排序的不是从0开始 1= got_ocr 2= dotsocr 3= dolphin 4= deepseek_ocr 5= paddleocr_vl, 6= hunyuan_ocr, 7= deepseek_ocr2, 8= firered_ocr
         matched_model = OcrModel.get_all_models()[model_type - 1]
         if not matched_model:
             return error_response(_("系统不支持此模型"))
@@ -707,8 +708,12 @@ def get_label_image_id_list(
         category_list = DeepseekOCR2Category.get_all_categories()
     elif matched_model["code"] == "paddleocr_vl":
         category_list = PaddleOCRVLCategory.get_all_categories()
-    else:
+    elif matched_model["code"] == "hunyuan_vl":
         category_list = HunyuanOCRCategory.get_all_categories()
+    elif matched_model["code"] == "firered_vl":
+        category_list = FireRedOCRCategory.get_all_categories()
+    else:
+        category_list = []
 
     data = {
         "image_id_list": image_id_list,

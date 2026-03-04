@@ -268,6 +268,10 @@ async def finetune_with_ms_swift(training_run_id: int, gpu_device: str):
             # 指定的transformers库植入环境变量
             env["PYTHONPATH"] = install_path + os.pathsep + env.get("PYTHONPATH", "")
 
+    # 微调firered_ocr模型的特殊处理
+    if matched_model == OcrModel.firered_ocr:
+        command.append("--model_type qwen3_vl")
+
     # 微调deepseek ocr模型的特殊处理，需要使用指定的4.46.3版本transformers库
     if matched_model == OcrModel.deepseek_ocr or matched_model == OcrModel.deepseek_ocr2:
         install_path = f"{tempfile.gettempdir()}/deepseek_ocr_finetune_{virtual_env_name}_env"

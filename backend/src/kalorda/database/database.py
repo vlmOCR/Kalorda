@@ -337,7 +337,7 @@ class SystemConfigDB(BaseDBModel):
 class DatasetDB(BaseDBModel):
     name = CharField(max_length=50)
     description = TextField(null=True)
-    model_type = IntegerField()  # 1=got_ocr, 2=dotsOCR, 3=dolphin, 4=deepseek_ocr, 5=paddleocr_vl
+    model_type = IntegerField()  # 1=got_ocr, 2=dotsOCR, 3=dolphin, 4=deepseek_ocr, 5=paddleocr_vl, 6=hunyuan_ocr, 7=deepseek_ocr2, 8=firered_ocr
     pre_ocr_status = IntegerField(default=1)  # 1=未开始预处理, 2=等待中, 3=正在预处理中, 4=预处理完成, 5=预处理失败
     pre_ocr_error = TextField(null=True)  # 预处理错误信息
     total_images = IntegerField(default=0)  # 总图片数量
@@ -422,7 +422,7 @@ class GPUTaskDB(BaseDBModel):
 class FineTuneTaskDB(BaseDBModel):
     name = CharField(max_length=100)  # 任务名称
     description = TextField(null=True)  # 任务描述
-    target_model = IntegerField()  # 目标模型: 1=got_ocr, 2=dotsOCR, 3=dolphin, 4=deepseek_ocr, 5=paddleocr_vl, 6=hunyuan_ocr, 7=deepseek_ocr2
+    target_model = IntegerField()  # 目标模型: 1=got_ocr, 2=dotsOCR, 3=dolphin, 4=deepseek_ocr, 5=paddleocr_vl, 6=hunyuan_ocr, 7=deepseek_ocr2, 8=firered_ocr
     # 暂时不设置through_model，稍后设置
     datasets = ManyToManyField(DatasetDB, backref="finetune_tasks")
     data_format = CharField(max_length=20, default="Alpaca")  # 数据格式: Alpaca, ShareGPT, ChatML, QueryResponse
@@ -736,6 +736,11 @@ def init_database():
                     "key": "deepseek_ocr2_weights_dir",
                     "value": "",
                     "description": "DEEPSEEK_OCR2权重本地路径",
+                },
+                {
+                    "key": "firered_ocr_weights_dir",
+                    "value": "",
+                    "description": "FIRERED_OCR权重本地路径",
                 },
             ]
 

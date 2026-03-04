@@ -14,6 +14,8 @@
 <a href="README.md">English</a>&nbsp;&nbsp;<a href="README_CN.md">中文</a>
 </p>
 
+🔥 News: Kalorda now supports fine-tuning for FireRed-OCR model/vllm v0.16.0/ms-swift v4.0.0
+
 🔥 News: Kalorda now supports fine-tuning for Deepseek-OCR-2, and specifically supports higher vLLM versions (v0.13/0.14/0.15) for running inference with Deepseek-OCR-2 (first release online).
 
 <img src="frontend/public/screenshot.png" width="100%" title="screenshot"/>
@@ -27,13 +29,14 @@ Currently supported VLM OCR models:
 
 | Model Name | Model Size | Release Date | Publisher |
 | ----------- | ----------- | ----------- | ----------- |
-| GOT-OCR2.0 | 0.6B     | 2025 | StepFun |
-| dotsOCR    | 3B       | 2025 | Xiaohongshu |
+| GOT-OCR2.0 | 0.6B     | May 2025 | StepFun |
+| dotsOCR    | 3B       | Jul 2025 | Xiaohongshu |
 | Dolphin_v2 | 3B       | Jan 2025 | ByteDance |
 | Deepseek_OCR | 3B     | Jan 2025 | DeepSeek |
 | PaddleOCR_VL | 0.9B   | Jan 2025 | Baidu |
 | HunyuanOCR   | 1B     | Feb 2025 | Tencent |
-| Deepseek_OCR2 | 3B     | 2026 | DeepSeek |
+| Deepseek_OCR2 | 3B     | Jan 2026 | DeepSeek |
+| FireRed_OCR    | 2B       | Mar 2026 | Xiaohongshu |
 
 More models will be integrated. PRs and issues are welcome.
 

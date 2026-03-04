@@ -5,6 +5,7 @@ from .dotsocr.vlm_offline_infer import DotsOCRInfer
 from .got_ocr.vlm_offline_infer import GotOCRInfer
 from .hunyuan_ocr.vlm_offline_infer import HunyuanOCRInfer
 from .paddleocr_vl.vlm_offline_infer import PaddleOCRVLInfer
+from .firered_ocr.vlm_offline_infer import FireRedOCRInfer
 
 
 def get_vllm_engine(model_code: str, model_weights_dir: str, lora_weights_dir: str = None):
@@ -22,5 +23,7 @@ def get_vllm_engine(model_code: str, model_weights_dir: str, lora_weights_dir: s
         return PaddleOCRVLInfer(model_weights_dir, lora_weights_dir)
     elif model_code == "hunyuan_ocr":
         return HunyuanOCRInfer(model_weights_dir, lora_weights_dir)
+    elif model_code == "firered_ocr":
+        return FireRedOCRInfer(model_weights_dir, lora_weights_dir)
     else:
         raise ValueError(f"不支持的模型代码: {model_code}")

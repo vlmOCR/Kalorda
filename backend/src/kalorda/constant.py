@@ -85,6 +85,14 @@ class OcrModel:
         "desc": "deepseek-ai/3B",
         "url": "https://github.com/deepseek-ai/DeepSeek-OCR-2",
     }
+    firered_ocr = {
+        "hf_id": "FireRedTeam/FireRed-OCR",
+        "ms_id": "FireRedTeam/FireRed-OCR",
+        "code": "firered_ocr",
+        "name": "FireRed_OCR",
+        "desc": "FireRedTeam/2B",
+        "url": "https://github.com/FireRedTeam/FireRed-OCR",
+    }
 
     def get_all_models():
         return [
@@ -95,6 +103,7 @@ class OcrModel:
             OcrModel.paddleocr_vl,
             OcrModel.hunyuan_ocr,
             OcrModel.deepseek_ocr2,
+            OcrModel.firered_ocr,
         ]
 
 
@@ -872,3 +881,24 @@ class HunyuanOCRCategory:
             HunyuanOCRCategory.Table,
             HunyuanOCRCategory.Image,
         ]
+
+
+# FireRedOCR类似gotOCR无布局layout、bbox输出
+class FireRedOCRCategory:
+    MixText = {
+        "code": "MixText",
+        "value": OCRBaseCategory.MixText,
+        "name": _("混合文本"),
+        "desc": _("混合文本"),
+        "is_figure": False,
+    }
+    Figure = {
+        "code": "Figure",
+        "value": OCRBaseCategory.Figure,
+        "name": _("插图插画"),
+        "desc": _("插图插画"),
+        "is_figure": True,
+    }
+
+    def get_all_categories():
+        return [FireRedOCRCategory.MixText, FireRedOCRCategory.Figure]

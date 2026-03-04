@@ -14,6 +14,8 @@
 <a href="README_CN.md">中文</a>&nbsp;&nbsp;<a href="README.md">English</a>
 </p>
 
+🔥 好消息: Kalorda现已支持 FireRed-OCR 模型 以及最新vllm v0.16.0、ms-swift v4.0.0
+
 🔥 好消息：Kalorda现已支持Deepseek-OCR-2模型微调训练，特别支持v0.13/0.14/0.15等高版本vLLM对Deepseek-OCR-2的运行推理（全网首发）
 
 <img src="frontend/public/screenshot.png" width="100%" title="screenshot"/>
@@ -34,6 +36,7 @@ Kalorda是一个轻量vlmOCR模型微调集成平台，前端采用Typescript+Vu
 | PaddleOCR_VL | 0.9B   | 2025年11月 | 百度 |
 | HunyuanOCR   | 1B     | 2025年12月 | 腾讯 |
 | Deepseek_OCR2 | 3B     | 2026年1月 | 深度求索 |
+| FireRed_OCR | 2B     | 2026年3月 | 小红书 |
 
 更多模型会持续集成，欢迎大家提交PR或issue一起完善。
 

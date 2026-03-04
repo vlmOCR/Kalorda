@@ -230,8 +230,8 @@ const initLabelInfo2Rect = async () => {
     let image_height = currentLabelImage.value.height;
 
     // console.log(ocr_label);
-    //got_ocr默认是整体一个文本识别结果，没有bbox的 paddlevl_ocr = 5  hunyuan_ocr = 6
-    if ((dataset.value.model_type == 1 || dataset.value.model_type == 5 || dataset.value.model_type == 6) && ocr_label.indexOf('"bbox"') == -1) {
+    //got_ocr默认是整体一个文本识别结果，没有bbox的 paddlevl_ocr = 5  hunyuan_ocr = 6 firered_ocr=8
+    if ((dataset.value.model_type == 1 || dataset.value.model_type == 5 || dataset.value.model_type == 6 || dataset.value.model_type == 8) && ocr_label.indexOf('"bbox"') == -1) {
         let labelInfo: LabelInfo = {
             id: `label_${Date.now()}`,
             pos1: [0, 0],

@@ -494,6 +494,15 @@ def _convert_ocr_label(image: DatasetImageDB, ocr_model: OcrModel):
             ocr_text.append(html_format(item["text"]))  # 只取text
         return "\n".join(ocr_text)
 
+    # 8、firered_ocr 模型
+    if ocr_model == OcrModel.firered_ocr:
+        # 合并为一个整体字符串，忽略掉标注后的bbox信息
+        json_labels = json.loads(ocr_label_json_str)
+        ocr_text = []
+        for item in json_labels:
+            ocr_text.append(html_format(item["text"]))  # 只取text
+        return "\n".join(ocr_text)
+
 
 def append_write_file(file_path: str, content: str):
     if not content or content == "":

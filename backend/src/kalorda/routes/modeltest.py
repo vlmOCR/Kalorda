@@ -30,6 +30,7 @@ from kalorda.constant import (
     OCRBaseCategory,
     OcrModel,
     PaddleOCRVLCategory,
+    FireRedOCRCategory,
     TestOCRStatus,
     TrainingStatus,
 )
@@ -624,6 +625,8 @@ async def ocr_constants(
             category_list = PaddleOCRVLCategory.get_all_categories()
         elif model_code == "hunyuan_ocr":
             category_list = HunyuanOCRCategory.get_all_categories()
+        elif model_code == "firered_ocr":
+            category_list = FireRedOCRCategory.get_all_categories()
 
         base_model_list.append(
             {

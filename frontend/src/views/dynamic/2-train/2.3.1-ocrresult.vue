@@ -1505,6 +1505,9 @@ const getModelOcrResult = async (callback?: Function) => {
                 case 6: //hunyuan_ocr
                     bboxLength = item.ocr_result.length > 0 ? 1 : 0;
                     break;
+                case 8: //firered_ocr
+                    bboxLength = item.ocr_result.length > 0 ? 1 : 0;
+                    break;
             }
             // 先填充占位
             image_ocr_list[i].labelInfoList = Array(bboxLength);
@@ -1789,7 +1792,7 @@ const _getImageOcrLabelInfoList = async (image_index: number): Promise<LabelInfo
     let image_width = image_info.image_width;
     let image_height = image_info.image_height;
 
-    if ((currentModelInfo.value.model_type == 1 || currentModelInfo.value.model_type == 5 || currentModelInfo.value.model_type == 6) && ocr_label.indexOf('"bbox"') == -1) {
+    if ((currentModelInfo.value.model_type == 1 || currentModelInfo.value.model_type == 5 || currentModelInfo.value.model_type == 6 || currentModelInfo.value.model_type == 8) && ocr_label.indexOf('"bbox"') == -1) {
         let category = currentModelInfo.value.category_list[0] as LabelCategory;
         let labelInfo: LabelInfo = {
             id: `image_${image_index}_label_0`,
