@@ -1,4 +1,4 @@
-import io
+from io import BytesIO
 import math
 import re
 
@@ -15,6 +15,18 @@ class DotsOCRInfer:
     max_model_len = 20480
     max_num_batched_tokens = 20480
     gpu_memory_utilization = 0.8
+    image_factor = 28
+    min_pixels = 3136
+    max_pixels = 11289600
+    preprocess_target_dpi = 200
+    use_pdf_preprocess = True
+    bbox_pattern = re.compile(
+        r'((?:"bbox"|\'bbox\'|bbox)\s*:\s*\[\s*)'
+        r'([-+]?\d+(?:\.\d+)?)\s*,\s*'
+        r'([-+]?\d+(?:\.\d+)?)\s*,\s*'
+        r'([-+]?\d+(?:\.\d+)?)\s*,\s*'
+        r'([-+]?\d+(?:\.\d+)?)\s*(\])'
+    )
 
     def __init__(self, model_weights_dir: str, lora_weights_dir: str = None):
         self.engine = LLM(
@@ -41,7 +53,8 @@ class DotsOCRInfer:
             self.lora_request = None
 
     def generate(self, image_file: str):
-        image, scaledX, scaledY = self.get_image(image_file)
+        origin_image = self.get_image(image_file)
+        image = self.preprocess_image_for_vllm(origin_image)
         inputs = [
             {
                 "prompt": self.prompt,
@@ -50,148 +63,137 @@ class DotsOCRInfer:
         ]
         response = self.engine.generate(inputs, self.sampling_params, lora_request=self.lora_request)
         ocr_result = response[0].outputs[0].text
+        ocr_result = self.post_process_bbox_text(
+            ocr_result,
+            original_width=origin_image.width,
+            original_height=origin_image.height,
+            processed_width=image.width,
+            processed_height=image.height,
+        )
         tokens_count = len(response[0].outputs[0].token_ids)
-        # 如果有缩放处理，需要解析OCR结果进行坐标还原
-        if scaledX != 1.0 or scaledY != 1.0:
-            ocr_result = self.parse_ocr_result(ocr_result, scaledX, scaledY)
         return ocr_result, tokens_count
 
-    # def get_image(self, image_file: str, adjust: bool = True):
-    #     scaledX = 1.0
-    #     scaledY = 1.0
-    #     image = Image.open(image_file).convert("RGB")
-    #     if not adjust:
-    #         return image, scaledX, scaledY
-
-    #     original_width, original_height = image.width, image.height
-    #     data_bytes = io.BytesIO()
-    #     image.save(data_bytes, format="PNG")
-
-    #     # fiz
-    #     import fitz
-    #     pdf_bytes = fitz.open(stream=data_bytes).convert_to_pdf()
-    #     doc = fitz.open("pdf", pdf_bytes)[0]
-
-    #     mat = fitz.Matrix(200 / 72.0, 200 / 72.0)
-    #     pm = doc.get_pixmap(matrix=mat, alpha=False)
-    #     if pm.width > 4500 or pm.height > 4500:
-    #         mat = fitz.Matrix(72 / 72, 72 / 72)  # use fitz default dpi
-    #         pm = doc.get_pixmap(matrix=mat, alpha=False)
-    #     image = Image.frombytes("RGB", (pm.width, pm.height), pm.samples)
-    #     # 以上使用fiz代码
-
-    #     resized_height, resized_width = self.smart_resize(image.width, image.height)
-    #     image = image.resize(
-    #         (
-    #             resized_width,
-    #             resized_height,
-    #         )
-    #     )
-    #     # 计算缩放比例
-    #     scaledX = resized_width / original_width
-    #     scaledY = resized_height / original_height
-
-    #     return image, scaledX, scaledY
-
     def get_image(self, image_file: str, adjust: bool = False):
-        scaledX = 1.0
-        scaledY = 1.0
         image = Image.open(image_file).convert("RGB")
-        original_width, original_height = image.width, image.height
-        if adjust:  # 使用自动调整图片
-            # 官方采用的是fitz组件，但因其开源协议的问题，采用spire.pdf.free + pdf2image组件替换，但效果不是完全一致
-            image = self.adjust_image(image_file)
-            # 计算缩放比例
-            scaledX = image.width / original_width
-            scaledY = image.height / original_height
-
-        logger.info(
-            f"dotsOCR adjust image -> width: {image.width}, height: {image.height},scaledX: {scaledX}, scaledY: {scaledY}"
-        )
-        return image, scaledX, scaledY
-
-    def parse_ocr_result(self, ocr_result: str, scaledX: float, scaledY: float):
-        """
-        解析OCR结果，提取坐标后进行缩放还原处理
-        """
-        pattern = re.compile(r"\"bbox\": \[(\d+), (\d+), (\d+), (\d+)\]")  # 匹配一个或多个数字
-        return pattern.sub(
-            lambda match: f'"bbox": [{int(int(match.group(1)) / scaledX)}, {int(int(match.group(2)) / scaledY)}, {int(int(match.group(3)) / scaledX)}, {int(int(match.group(4)) / scaledY)}]',
-            ocr_result,
-        )
-
-    def adjust_image(self, image_file: str):
-        import os
-        import tempfile
-        import uuid
-
-        import pdf2image
-        from spire.pdf import PdfDocument, PdfImage
-        from spire.pdf.common import SizeF
-
-        # 生成随机文件名
-        tmp_pdf_name = f"dots_ocr_{uuid.uuid4().hex}.pdf"
-        tmp_pdf_file = os.path.join(tempfile.gettempdir(), tmp_pdf_name)
-
-        # 原始图片先转成单页pdf，采用spire.pdf.free组件
-        doc = PdfDocument()
-        doc.PageSettings.SetMargins(0.0)
-        image = PdfImage.FromFile(image_file)
-        width = image.PhysicalDimension.Width
-        height = image.PhysicalDimension.Height
-        page = doc.Pages.Add(SizeF(width, height))
-        page.Canvas.DrawImage(image, 0.0, 0.0, width, height)
-        doc.SaveToFile(tmp_pdf_file)
-        doc.Close()
-
-        # 再将pdf转成图片，采用pdf2image组件，指定dpi为200
-        images = pdf2image.convert_from_path(tmp_pdf_file, dpi=200, size=(2048, None))
-        image = images[0]
-
-        # 最后智能计算应该合适尺寸并修改，确保像素数在3136-11289600之间
-        resized_height, resized_width = self.smart_resize(image.width, image.height)
-        image = image.resize(
-            (
-                resized_width,
-                resized_height,
-            )
-        )
-
         return image
 
-    def smart_resize(
-        self,
-        height: int,
-        width: int,
-        factor: int = 28,
-        min_pixels: int = 3136,
-        max_pixels: int = 11289600,
-    ):
-        if max(height, width) / min(height, width) > 200:
-            raise ValueError(
-                f"absolute aspect ratio must be smaller than 200, got {max(height, width) / min(height, width)}"
-            )
-        h_bar = max(factor, self.round_by_factor(height, factor))
-        w_bar = max(factor, self.round_by_factor(width, factor))
-        if h_bar * w_bar > max_pixels:
-            beta = math.sqrt((height * width) / max_pixels)
-            h_bar = max(factor, self.floor_by_factor(height / beta, factor))
-            w_bar = max(factor, self.floor_by_factor(width / beta, factor))
-        elif h_bar * w_bar < min_pixels:
-            beta = math.sqrt(min_pixels / (height * width))
-            h_bar = self.ceil_by_factor(height * beta, factor)
-            w_bar = self.ceil_by_factor(width * beta, factor)
-            if h_bar * w_bar > max_pixels:  # max_pixels first to control the token length
-                beta = math.sqrt((h_bar * w_bar) / max_pixels)
-                h_bar = max(factor, self.floor_by_factor(h_bar / beta, factor))
-                w_bar = max(factor, self.floor_by_factor(w_bar / beta, factor))
-        return h_bar, w_bar
+    def preprocess_image_for_vllm(self, image: Image.Image) -> Image.Image:
+        if not self.use_pdf_preprocess:
+            return self.to_rgb(image)
 
-    def round_by_factor(self, number: int, factor: int) -> int:
+        try:
+            return self.render_image_via_pdfium(image, target_dpi=self.preprocess_target_dpi)
+        except Exception as exc:
+            logger.warning(f"dotsocr pdf preprocess skipped: {exc}")
+            return self.to_rgb(image)
+
+    @staticmethod
+    def to_rgb(image: Image.Image) -> Image.Image:
+        if image.mode == "RGBA":
+            rgb_image = Image.new("RGB", image.size, (255, 255, 255))
+            rgb_image.paste(image, mask=image.split()[3])
+            return rgb_image
+        return image.convert("RGB")
+
+    def render_image_via_pdfium(self, image: Image.Image, target_dpi: int = 200) -> Image.Image:
+        import pypdfium2 as pdfium
+
+        image = self.to_rgb(image)
+        image_bytes = BytesIO()
+        image.save(image_bytes, format="PDF")
+        document = pdfium.PdfDocument(image_bytes.getvalue())
+        page = document[0]
+
+        scale = target_dpi / 72
+        rendered = page.render(scale=scale)
+        rendered_image = rendered.to_pil()
+        if rendered_image.width > 4500 or rendered_image.height > 4500:
+            rendered_image = page.render(scale=1).to_pil()
+
+        return rendered_image.convert("RGB")
+
+    @classmethod
+    def round_by_factor(cls, number: int, factor: int) -> int:
         return round(number / factor) * factor
 
-    def ceil_by_factor(self, number: int, factor: int) -> int:
+    @classmethod
+    def ceil_by_factor(cls, number: int, factor: int) -> int:
         return math.ceil(number / factor) * factor
 
-    def floor_by_factor(self, number: int, factor: int) -> int:
+    @classmethod
+    def floor_by_factor(cls, number: int, factor: int) -> int:
         return math.floor(number / factor) * factor
+
+    @classmethod
+    def smart_resize(
+        cls,
+        height: int,
+        width: int,
+        factor: int = None,
+        min_pixels: int = None,
+        max_pixels: int = None,
+    ):
+        factor = factor or cls.image_factor
+        min_pixels = min_pixels or cls.min_pixels
+        max_pixels = max_pixels or cls.max_pixels
+
+        if max(height, width) / min(height, width) > 200:
+            raise ValueError(f"absolute aspect ratio must be smaller than 200, got {max(height, width) / min(height, width)}")
+
+        h_bar = max(factor, cls.round_by_factor(height, factor))
+        w_bar = max(factor, cls.round_by_factor(width, factor))
+        if h_bar * w_bar > max_pixels:
+            beta = math.sqrt((height * width) / max_pixels)
+            h_bar = max(factor, cls.floor_by_factor(height / beta, factor))
+            w_bar = max(factor, cls.floor_by_factor(width / beta, factor))
+        elif h_bar * w_bar < min_pixels:
+            beta = math.sqrt(min_pixels / (height * width))
+            h_bar = cls.ceil_by_factor(height * beta, factor)
+            w_bar = cls.ceil_by_factor(width * beta, factor)
+            if h_bar * w_bar > max_pixels:
+                beta = math.sqrt((h_bar * w_bar) / max_pixels)
+                h_bar = max(factor, cls.floor_by_factor(h_bar / beta, factor))
+                w_bar = max(factor, cls.floor_by_factor(w_bar / beta, factor))
+        return h_bar, w_bar
+
+    def post_process_bbox_text(
+        self,
+        ocr_result: str,
+        original_width: int,
+        original_height: int,
+        processed_width: int,
+        processed_height: int,
+    ) -> str:
+        if (
+            not ocr_result
+            or original_width <= 0
+            or original_height <= 0
+            or processed_width <= 0
+            or processed_height <= 0
+        ):
+            return ocr_result
+
+        try:
+            input_height, input_width = self.smart_resize(processed_height, processed_width)
+            scale_x = input_width / original_width
+            scale_y = input_height / original_height
+        except Exception as exc:
+            logger.warning(f"dotsocr bbox post process skipped: {exc}")
+            return ocr_result
+
+        def replace_bbox(match: re.Match) -> str:
+            try:
+                bbox = [float(match.group(index)) for index in range(2, 6)]
+            except ValueError:
+                return match.group(0)
+
+            bbox_resized = [
+                int(bbox[0] / scale_x),
+                int(bbox[1] / scale_y),
+                int(bbox[2] / scale_x),
+                int(bbox[3] / scale_y),
+            ]
+            return f"{match.group(1)}{bbox_resized[0]}, {bbox_resized[1]}, {bbox_resized[2]}, {bbox_resized[3]}{match.group(6)}"
+
+        return self.bbox_pattern.sub(replace_bbox, ocr_result)
+

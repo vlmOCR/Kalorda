@@ -35,6 +35,7 @@ dependencies = [
     "peewee",
     "verovio",
     "pdf2image",
+    "pypdfium2",
     "Spire.Pdf.Free",
     "poppler-utils",
     "pysqlite3-binary",
