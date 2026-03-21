@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ICPInformation from '@/components/ICPInformation.vue';
 import FloatingConfigurator from '@/components/FloatingConfigurator.vue';
-import AppGlobal from '@/layout/APPGlobal.vue';
+import AppGlobal from '@/layout/AppGlobal.vue';
 import { showLoading, hideLoading, showToast } from '@/utils/GlobalUtil';
 import { useLayout } from '@/layout/composables/layout';
 import { AuthService } from '@/services/AuthService';

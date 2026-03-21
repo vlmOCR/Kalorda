@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ICPInformation from '@/components/ICPInformation.vue';
-import AppGlobal from '@/layout/APPGlobal.vue';
+import AppGlobal from '@/layout/AppGlobal.vue';
 import { showLoading, hideLoading, showToast } from '@/utils/GlobalUtil';
 import { AuthService } from '@/services/AuthService';
 import { promise2, debounce, validEmail, gotoRoute } from '@/utils/Common';
